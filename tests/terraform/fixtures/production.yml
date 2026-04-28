@@ -1,0 +1,3 @@
+PLAIN_STRING: prod-hello
+DATABASE_URL: "postgres://prod:pass@prod-host/db"
+API_KEY: "prod-key-abc123"

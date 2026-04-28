@@ -1,0 +1,1 @@
+VERCEL_TOKEN=vercel_pat_xYzAbCdEfGhIjKlMnOpQrStUvWxYz1234567890abcdef
