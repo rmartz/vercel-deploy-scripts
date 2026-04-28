@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v1.0.0...v1.1.0) (2026-04-28)
+
+
+### Features
+
+* add reusable secret-scan CI workflow ([#15](https://github.com/rmartz/vercel-deploy-scripts/issues/15)) ([196a3cf](https://github.com/rmartz/vercel-deploy-scripts/commit/196a3cf4e137ee775e727497476e8e7cf571a829)), closes [#6](https://github.com/rmartz/vercel-deploy-scripts/issues/6)
+
 # 1.0.0 (2026-04-28)
 
 
