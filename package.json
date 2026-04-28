@@ -1,0 +1,18 @@
+{
+  "name": "vercel-deploy-scripts",
+  "version": "0.0.0",
+  "description": "Shared deployment and security tooling for Firebase + Next.js projects hosted on Vercel",
+  "license": "MIT",
+  "bin": {
+    "generate-local-env": "./scripts/generate-local-env.sh",
+    "secrets-check": "./scripts/secrets-check.sh"
+  },
+  "files": [
+    "scripts/",
+    ".gitleaks.toml",
+    "templates/"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}
