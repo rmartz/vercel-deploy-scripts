@@ -70,6 +70,18 @@ jobs:
     uses: rmartz/vercel-deploy-scripts/.github/workflows/secret-scan.yml@v1
 ```
 
+The workflow checks out your repo with full history and runs gitleaks via `gitleaks/gitleaks-action@v2`. If a `.gitleaks.toml` exists in your repo root, it is picked up automatically.
+
+To supply a custom config path, pass the optional `config-path` input:
+
+```yaml
+jobs:
+  secret-scan:
+    uses: rmartz/vercel-deploy-scripts/.github/workflows/secret-scan.yml@v1
+    with:
+      config-path: .github/gitleaks.toml
+```
+
 ## Terraform environment variable management
 
 `templates/terraform/` contains a ready-to-use Terraform configuration that manages Vercel environment variables from `deployment/environments.yml` and per-environment `deployment/{env}.yml` YAML files (the same layout used by `firebase-nextjs-template`). It creates `vercel_project_environment_variable` resources for every non-empty value and maps `staging → preview` for the Vercel target.
