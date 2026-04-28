@@ -1,0 +1,31 @@
+name: Terraform Plan
+on:
+  pull_request:
+    paths:
+      - "deployment/**"
+      - "terraform/**"
+  push:
+    branches: [main]
+    paths:
+      - "deployment/**"
+      - "terraform/**"
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform init -backend=false
+      - run: terraform validate
+      - name: Terraform Plan
+        if: ${{ env.VERCEL_API_TOKEN != '' }}
+        run: terraform plan
+        env:
+          TF_VAR_vercel_project_id: ${{ secrets.VERCEL_PROJECT_ID }}
+          TF_VAR_vercel_team_id: ${{ secrets.VERCEL_TEAM_ID }}
+          TF_VAR_vercel_api_token: ${{ secrets.VERCEL_API_TOKEN }}
+          VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
