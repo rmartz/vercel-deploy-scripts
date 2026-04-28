@@ -72,7 +72,30 @@ jobs:
 
 ## Terraform environment variable management
 
-See `templates/terraform/` for Terraform configuration that manages Vercel environment variables from `deployment/{env}.yml` YAML files. Copy the templates into your repo and follow the README in that directory.
+`templates/terraform/` contains a ready-to-use Terraform configuration that manages Vercel environment variables from `deployment/environments.yml` and per-environment `deployment/{env}.yml` YAML files (the same layout used by `firebase-nextjs-template`). It creates `vercel_project_environment_variable` resources for every non-empty value and maps `staging → preview` for the Vercel target.
+
+`templates/workflows/terraform-plan.yml` is a companion GitHub Actions workflow that runs `terraform validate` on every PR and `terraform plan` when secrets are present.
+
+### Initializing a consuming repo
+
+Run the `init-terraform` script once in the root of the consuming repo after installing this package:
+
+```sh
+npx init-terraform
+```
+
+This copies:
+
+- `node_modules/vercel-deploy-scripts/templates/terraform/` → `terraform/`
+- `node_modules/vercel-deploy-scripts/templates/workflows/terraform-plan.yml` → `.github/workflows/terraform-plan.yml`
+
+The script is idempotent — it will warn and skip any destination that already exists.
+
+After running it:
+
+1. Copy `terraform/terraform.tfvars.example` → `terraform/terraform.tfvars` and fill in `vercel_project_id` (and optionally `vercel_team_id`).
+2. Add `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID` (if applicable), and `VERCEL_API_TOKEN` to your GitHub Actions secrets.
+3. Run `cd terraform && terraform init`.
 
 ## Peer requirements
 
