@@ -76,6 +76,11 @@ jobs:
 
 `templates/workflows/terraform-plan.yml` is a companion GitHub Actions workflow that runs `terraform validate` on every PR and `terraform plan` when secrets are present.
 
+### Prerequisites
+
+- [Terraform CLI](https://developer.hashicorp.com/terraform/install) ≥ 1.0 must be installed locally to run `terraform init`, `validate`, and `plan`.
+- The [Vercel Terraform provider](https://registry.terraform.io/providers/vercel/vercel/latest) (`vercel/vercel`) is declared in `main.tf` and is downloaded automatically by `terraform init` — no manual installation needed.
+
 ### Initializing a consuming repo
 
 Run the `init-terraform` script once in the root of the consuming repo after installing this package:
@@ -96,6 +101,39 @@ After running it:
 1. Copy `terraform/terraform.tfvars.example` → `terraform/terraform.tfvars` and fill in `vercel_project_id` (and optionally `vercel_team_id`).
 2. Add `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID` (if applicable), and `VERCEL_API_TOKEN` to your GitHub Actions secrets.
 3. Run `cd terraform && terraform init`.
+
+### State management
+
+By default Terraform stores state locally in `terraform/terraform.tfstate`. This is fine for solo projects but is not suitable for teams. The copied `terraform/main.tf` includes commented-out backend blocks you can uncomment to switch to a remote backend:
+
+```hcl
+# Terraform Cloud / HCP Terraform
+# terraform {
+#   cloud {
+#     organization = "your-org"
+#     workspaces {
+#       name = "your-workspace"
+#     }
+#   }
+# }
+
+# Google Cloud Storage
+# terraform {
+#   backend "gcs" {
+#     bucket = "your-tfstate-bucket"
+#     prefix = "terraform/state"
+#   }
+# }
+```
+
+After uncommenting a backend block, run `terraform init -migrate-state` to move existing local state into the remote backend.
+
+### CI workflow wiring
+
+`init-terraform` copies `terraform-plan.yml` verbatim to `.github/workflows/terraform-plan.yml` in the consuming repo. No additional wiring is required — the workflow is self-contained and triggers on pull requests to the default branch.
+
+- On every PR: `terraform validate` runs unconditionally to catch syntax errors.
+- `terraform plan` runs only when the `VERCEL_API_TOKEN` secret is present, so forks and external contributors are not blocked.
 
 ## Peer requirements
 

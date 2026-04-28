@@ -4,12 +4,24 @@ terraform {
       source  = "vercel/vercel"
       version = "~> 1.0"
     }
-    local = {
-      source  = "hashicorp/local"
-      version = "~> 2.0"
-    }
-    yamldecode = {}
   }
+
+  # Uncomment one of the following backend blocks to store state remotely.
+  # After uncommenting, run: terraform init -migrate-state
+
+  # Terraform Cloud / HCP Terraform
+  # cloud {
+  #   organization = "your-org"
+  #   workspaces {
+  #     name = "your-workspace"
+  #   }
+  # }
+
+  # Google Cloud Storage
+  # backend "gcs" {
+  #   bucket = "your-tfstate-bucket"
+  #   prefix = "terraform/state"
+  # }
 }
 
 provider "vercel" {
