@@ -1,0 +1,38 @@
+[extend]
+useDefault = true
+
+[allowlist]
+regexes = [
+  '''YOUR_[A-Z0-9_]*''',
+  '''PLACEHOLDER_[A-Z0-9_]*''',
+  '''<[^>]+>''',
+  '''(?i)^example$''',
+  '''(?i)^changeme$''',
+]
+
+[[rules]]
+id = "firebase-private-key"
+description = "Firebase service account private key"
+regex = '''-----BEGIN PRIVATE KEY-----'''
+tags = ["firebase", "key"]
+
+[rules.allowlist]
+regexes = ['''YOUR_PRIVATE_KEY''', '''<private_key>''']
+
+[[rules]]
+id = "firebase-service-account-json"
+description = "Firebase service account JSON blob"
+regex = '''"type"\s*:\s*"service_account"'''
+tags = ["firebase", "credentials"]
+
+[rules.allowlist]
+regexes = ['''YOUR_SERVICE_ACCOUNT''', '''<service_account>''']
+
+[[rules]]
+id = "vercel-api-token"
+description = "Vercel API token"
+regex = '''(?:vercel_[a-zA-Z0-9]{24,}|(?:VERCEL_TOKEN|VERCEL_API_TOKEN)\s*=\s*[a-zA-Z0-9_\-]{20,})'''
+tags = ["vercel", "token"]
+
+[rules.allowlist]
+regexes = ['''vercel_YOUR_.*''', '''vercel_PLACEHOLDER_.*''', '''<vercel[_-]token>''']
