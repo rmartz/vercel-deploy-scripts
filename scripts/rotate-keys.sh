@@ -663,39 +663,54 @@ wait_for_deployments() {
 # ─── Key invalidation ─────────────────────────────────────────────────────────
 
 invalidate_firebase_keys() {
-  local count="${#OLD_FIREBASE_KEYS[@]}"
-  if [[ "$count" -eq 0 ]]; then
-    warn "No old Firebase key IDs recorded — skipping Firebase invalidation"
-    return
-  fi
+  log "Invalidating old Firebase keys (sweeping all non-active user-managed keys)..."
 
-  log "Invalidating $count old Firebase key(s) (user-managed only)..."
+  # Build the set of key IDs currently active in Vercel across all three
+  # standard environments. This is the authoritative "keep" list — anything
+  # outside it is a stray key (old rotation remnants, partially leaked keys,
+  # etc.) and should be removed.
+  local all_envs_fresh
+  all_envs_fresh="$(list_env_vars)"
 
-  # Verify each key is still user-managed before deleting (defensive check)
+  local active_keys=""
+  for check_env in production preview development; do
+    local kid
+    kid="$(get_firebase_key_id_for_env "$check_env" "$all_envs_fresh")"
+    if [[ -n "$kid" ]]; then
+      active_keys="${active_keys} ${kid}"
+      log "  Active key [$check_env]: $kid"
+    fi
+  done
+
   local user_keys
   user_keys="$(list_user_managed_gcp_keys)"
 
-  local i
-  for (( i = 0; i < count; i++ )); do
-    local vercel_env="${OLD_FIREBASE_ENVS[$i]}"
-    local key_id="${OLD_FIREBASE_KEYS[$i]}"
+  local deleted=0
+  while IFS= read -r key_id; do
+    [[ -z "$key_id" ]] && continue
 
-    if ! echo "$user_keys" | grep -qF "$key_id"; then
-      warn "[$vercel_env] Key $key_id not found in user-managed keys — skipping"
-      continue
+    if echo "$active_keys" | grep -qF "$key_id"; then
+      continue  # currently active — keep
     fi
 
-    log "  [$vercel_env] Deleting key: $key_id"
+    log "  Deleting stray key: $key_id"
     if gcloud iam service-accounts keys delete "$key_id" \
         --iam-account="$FIREBASE_SA_EMAIL" \
         --project="$FIREBASE_GCP_PROJECT" \
         --quiet 2>/dev/null; then
-      log "  [$vercel_env] Deleted."
+      log "  Deleted: $key_id"
+      (( deleted++ )) || true
     else
-      warn "[$vercel_env] Failed to delete key $key_id — remove manually:"
+      warn "Failed to delete key $key_id — remove manually:"
       warn "  gcloud iam service-accounts keys delete $key_id --iam-account=$FIREBASE_SA_EMAIL"
     fi
-  done
+  done <<< "$user_keys"
+
+  if [[ $deleted -eq 0 ]]; then
+    log "  No stray keys found."
+  else
+    log "  Deleted $deleted stray key(s)."
+  fi
 }
 
 invalidate_sentry_key() {
