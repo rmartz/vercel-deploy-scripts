@@ -1,6 +1,18 @@
 # [1.2.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v1.1.0...v1.2.0) (2026-04-29)
 
 
+### Bug Fixes
+
+* add install-deps input to secret-scan workflow ([#18](https://github.com/rmartz/vercel-deploy-scripts/issues/18)) ([f8395f9](https://github.com/rmartz/vercel-deploy-scripts/commit/f8395f906d92b0a0db5a49c56bbafc61532cf771))
+
+
+### Features
+
+* add automated test suite (BATS, gitleaks fixtures, YAML parsing) ([#17](https://github.com/rmartz/vercel-deploy-scripts/issues/17)) ([353d03a](https://github.com/rmartz/vercel-deploy-scripts/commit/353d03ae9ff72d5bf4c1287c825f2aab8734f3c9))
+
+# [1.2.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v1.1.0...v1.2.0) (2026-04-29)
+
+
 ### Features
 
 * add automated test suite (BATS, gitleaks fixtures, YAML parsing) ([#17](https://github.com/rmartz/vercel-deploy-scripts/issues/17)) ([353d03a](https://github.com/rmartz/vercel-deploy-scripts/commit/353d03ae9ff72d5bf4c1287c825f2aab8734f3c9))
