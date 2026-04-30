@@ -700,19 +700,28 @@ trigger_redeployments() {
   while IFS= read -r vercel_env; do
     [[ -z "$vercel_env" ]] && continue
 
+    # Vercel's deployment API uses "staging" for preview deployments, not "preview".
+    # "development" has no remote deployment target; the empty-id guard handles it.
+    local deploy_target
+    case "$vercel_env" in
+      production) deploy_target="production" ;;
+      *)          deploy_target="staging" ;;
+    esac
+
     # Find the latest READY deployment for this environment
     local list_url
-    list_url="${VERCEL_API}/v6/deployments?projectId=${VERCEL_PROJECT_ID}&target=${vercel_env}&limit=1&state=READY"
+    list_url="${VERCEL_API}/v6/deployments?projectId=${VERCEL_PROJECT_ID}&target=${deploy_target}&limit=1&state=READY"
     [[ -n "${VERCEL_TEAM_ID:-}" ]] && list_url="${list_url}&teamId=${VERCEL_TEAM_ID}"
 
-    local deployments latest_id latest_url
+    local deployments latest_id latest_url latest_name
     # Strip control characters before parsing: the v6 API occasionally includes
     # non-printable bytes that cause jq to fail or return empty. tr removes
     # everything below 0x20 except TAB (\011), LF (\012), and CR (\015).
-    deployments="$(curl -sf -H "Authorization: Bearer ${VERCEL_TOKEN}" "$list_url" \
+    deployments="$(curl -sf --http1.1 -H "Authorization: Bearer ${VERCEL_TOKEN}" "$list_url" \
       | tr -d '\000-\010\013\014\016-\037')" || true
-    latest_id="$(echo "$deployments" | jq -r '.deployments[0].uid // empty' 2>/dev/null || true)"
-    latest_url="$(echo "$deployments" | jq -r '.deployments[0].url // empty' 2>/dev/null || true)"
+    latest_id="$(echo "$deployments"   | jq -r '.deployments[0].uid  // empty' 2>/dev/null || true)"
+    latest_url="$(echo "$deployments"  | jq -r '.deployments[0].url  // empty' 2>/dev/null || true)"
+    latest_name="$(echo "$deployments" | jq -r '.deployments[0].name // empty' 2>/dev/null || true)"
 
     if [[ -z "$latest_id" ]]; then
       warn "No READY deployment found for '$vercel_env' — skipping redeployment"
@@ -722,7 +731,8 @@ trigger_redeployments() {
     log "  Redeploying $vercel_env ($latest_url)..."
     local new_deployment new_id
     new_deployment="$(vercel_api "/v13/deployments" POST \
-      "$(jq -n --arg id "$latest_id" '{deploymentId: $id}')")"
+      "$(jq -n --arg id "$latest_id" --arg name "$latest_name" --arg target "$deploy_target" \
+           '{deploymentId: $id, name: $name, target: $target}')")"
     new_id="$(echo "$new_deployment" | jq -r '.id')"
     DEPLOYMENT_IDS+=("$new_id")
     log "  Queued: $new_id"
