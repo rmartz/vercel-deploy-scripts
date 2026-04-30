@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v1.3.1...v1.4.0) (2026-04-30)
+
+
+### Features
+
+* add sync-env script for upserting public env vars to Vercel ([#21](https://github.com/rmartz/vercel-deploy-scripts/issues/21)) ([84b1ccf](https://github.com/rmartz/vercel-deploy-scripts/commit/84b1ccf3b9a48adccca9747bb9760f23a83e760e))
+
 ## [1.3.1](https://github.com/rmartz/vercel-deploy-scripts/compare/v1.3.0...v1.3.1) (2026-04-30)
 
 
