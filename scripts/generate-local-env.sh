@@ -11,4 +11,4 @@ if ! vercel whoami &>/dev/null; then
   exit 1
 fi
 
-vercel env pull .env.local --environment=preview
+vercel env pull .env.local --environment=development
