@@ -359,8 +359,28 @@ detect_firebase_pattern() {
   log "  GCP project     : $FIREBASE_GCP_PROJECT"
 }
 
+# Returns 0 if the given Vercel environment has a Firebase key configured,
+# checking the actual key variable (not FIREBASE_PRIVATE_KEY_ID, which may not
+# exist on projects set up before this script was used).
+has_firebase_key_for_env() {
+  local vercel_env="$1"
+  local all_envs="$2"
+  local key_name
+  if [[ "${FIREBASE_KEY_PATTERN:-}" == "json" ]]; then
+    key_name="FIREBASE_SERVICE_ACCOUNT"
+  else
+    key_name="FIREBASE_PRIVATE_KEY"
+  fi
+  local record_id
+  record_id="$(echo "$all_envs" | jq -r \
+    --arg t "$vercel_env" \
+    --arg k "$key_name" \
+    'first(.envs[] | select(.key == $k and (.target | index($t) != null)) | .id) // empty')"
+  [[ -n "$record_id" ]]
+}
+
 # Finds the private_key_id currently stored for a given Vercel environment.
-# Returns empty string if not found.
+# Returns empty string if not found (e.g. FIREBASE_PRIVATE_KEY_ID not tracked).
 get_firebase_key_id_for_env() {
   local vercel_env="$1"
   local all_envs="$2"
@@ -464,18 +484,25 @@ rotate_firebase() {
   while IFS= read -r vercel_env; do
     [[ -z "$vercel_env" ]] && continue
 
-    # Read old key ID before creating the new one
-    local old_key_id
-    old_key_id="$(get_firebase_key_id_for_env "$vercel_env" "$all_envs")"
-
-    if [[ -z "$old_key_id" ]]; then
-      if [[ "$TARGET_ENV" == "all" ]]; then
+    # For "--env all": skip environments with no Firebase key. Check the actual
+    # key var, not FIREBASE_PRIVATE_KEY_ID — projects set up before this script
+    # may not have the ID var tracked yet, causing all envs to appear unconfigured.
+    if [[ "$TARGET_ENV" == "all" ]]; then
+      if ! has_firebase_key_for_env "$vercel_env" "$all_envs"; then
         log "  [$vercel_env] No existing key — skipping (use --env $vercel_env to explicitly add)"
         continue
       fi
-      log "  [$vercel_env] No existing key found — will add"
-    else
+    fi
+
+    # Read old key ID (best-effort: empty if FIREBASE_PRIVATE_KEY_ID not tracked).
+    # Absence here does not mean the env is unconfigured; the stray-key sweep
+    # handles cleanup even without the prior key ID.
+    local old_key_id
+    old_key_id="$(get_firebase_key_id_for_env "$vercel_env" "$all_envs")"
+    if [[ -n "$old_key_id" ]]; then
       log "  [$vercel_env] Current key ID: $old_key_id"
+    else
+      log "  [$vercel_env] No key ID tracked — old key will be swept after redeployment"
     fi
 
     # Determine which Firebase SA owns this Vercel environment. In a two-env
@@ -753,7 +780,8 @@ invalidate_firebase_keys() {
   # production uses one SA and preview/development use the staging SA) as well
   # as prod-only projects (single SA across all environments).
   local active_keys=""
-  local sa_pair_list=""  # "email:project" entries, space-separated, deduplicated
+  local sa_pair_list=""    # "email:project" entries, space-separated, deduplicated
+  local unsweepable_sas="" # SAs where ≥1 env has a key but no key ID tracked
 
   for check_env in production preview development; do
     local kid sa_info
@@ -770,6 +798,14 @@ invalidate_firebase_keys() {
       if ! echo "$sa_pair_list" | grep -qF "$pair"; then
         sa_pair_list="${sa_pair_list} ${pair}"
       fi
+      # If the env has a key but no tracked key ID, we can't safely determine
+      # all active keys for this SA — mark it unsweepable to avoid deleting
+      # active keys from environments that were set up before this script.
+      if [[ -z "$kid" ]]; then
+        if ! echo "$unsweepable_sas" | grep -qF "$pair"; then
+          unsweepable_sas="${unsweepable_sas} ${pair}"
+        fi
+      fi
     fi
   done
 
@@ -779,6 +815,17 @@ invalidate_firebase_keys() {
   for pair in $sa_pair_list; do
     local sa_email="${pair%%:*}"
     local gcp_project="${pair#*:}"
+
+    # Skip SAs where at least one environment has a key but no tracked key ID.
+    # Without the full active-key set we'd incorrectly delete keys still in use.
+    # Rotate all environments first (which sets FIREBASE_PRIVATE_KEY_ID), then
+    # re-run to perform the sweep.
+    if echo "$unsweepable_sas" | grep -qF "$pair"; then
+      warn "Skipping stray-key sweep for $sa_email — not all environments have FIREBASE_PRIVATE_KEY_ID tracked."
+      warn "  Rotate all environments first, then re-run to sweep old keys."
+      continue
+    fi
+
     log "  Sweeping SA: $sa_email"
 
     local user_keys
