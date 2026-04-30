@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v1.2.0...v1.3.0) (2026-04-30)
+
+
+### Features
+
+* add rotate-keys script for Firebase and Sentry key rotation ([#19](https://github.com/rmartz/vercel-deploy-scripts/issues/19)) ([dbeb161](https://github.com/rmartz/vercel-deploy-scripts/commit/dbeb1611d197b991fe024e0ee2845e8d93f3285c))
+
 # [1.2.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v1.1.0...v1.2.0) (2026-04-29)
 
 
