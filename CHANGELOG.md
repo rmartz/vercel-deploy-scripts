@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v1.4.0...v1.5.0) (2026-04-30)
+
+
+### Features
+
+* **sync-env:** read from Terraform deployment YAML instead of .env file ([#23](https://github.com/rmartz/vercel-deploy-scripts/issues/23)) ([b1a9352](https://github.com/rmartz/vercel-deploy-scripts/commit/b1a935200ef5218a285a312fc5037e94b19346a8))
+
 # [1.4.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v1.3.1...v1.4.0) (2026-04-30)
 
 
