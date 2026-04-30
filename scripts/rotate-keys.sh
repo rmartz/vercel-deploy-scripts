@@ -421,24 +421,31 @@ rotate_firebase() {
   detect_firebase_pattern "$all_envs"
   log "  Key pattern: ${FIREBASE_KEY_PATTERN}"
 
-  # Determine which environments to rotate and which old keys to record.
-  # For "all", we always rotate production/preview/development. If an env is
-  # missing the key, we add it with a fresh GCP key.
+  # Rotate each targeted environment. For "--env all", only environments that
+  # already have a Firebase key are rotated — we don't add keys to environments
+  # that aren't configured (e.g. a prod/staging project with no development key).
+  # When a specific env is given explicitly (e.g. "--env development"), we add
+  # the key even if it doesn't exist yet, since that's the explicit intent.
   local rotated_any=false
 
   while IFS= read -r vercel_env; do
     [[ -z "$vercel_env" ]] && continue
 
-    log "  [$vercel_env] Rotating..."
-
     # Read old key ID before creating the new one
     local old_key_id
     old_key_id="$(get_firebase_key_id_for_env "$vercel_env" "$all_envs")"
-    if [[ -n "$old_key_id" ]]; then
-      log "  [$vercel_env] Current key ID: $old_key_id"
-    else
+
+    if [[ -z "$old_key_id" ]]; then
+      if [[ "$TARGET_ENV" == "all" ]]; then
+        log "  [$vercel_env] No existing key — skipping (use --env $vercel_env to explicitly add)"
+        continue
+      fi
       log "  [$vercel_env] No existing key found — will add"
+    else
+      log "  [$vercel_env] Current key ID: $old_key_id"
     fi
+
+    log "  [$vercel_env] Rotating..."
 
     # Create a fresh GCP service account key for this specific environment
     local new_key_file="$TEMP_DIR/key-${vercel_env}.json"
