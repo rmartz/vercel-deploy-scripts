@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/rmartz/vercel-deploy-scripts/compare/v1.3.0...v1.3.1) (2026-04-30)
+
+
+### Bug Fixes
+
+* pull from development environment in generate-local-env ([#20](https://github.com/rmartz/vercel-deploy-scripts/issues/20)) ([1ec2212](https://github.com/rmartz/vercel-deploy-scripts/commit/1ec2212eb3800434f7106d0b62b12825279aa3c5))
+
 # [1.3.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v1.2.0...v1.3.0) (2026-04-30)
 
 
