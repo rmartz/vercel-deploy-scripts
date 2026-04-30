@@ -158,7 +158,7 @@ list_env_vars() {
   while next="$(echo "$result" | jq -r '.pagination.next // empty')" && [[ -n "$next" ]]; do
     local page
     page="$(vercel_api "/v9/projects/${VERCEL_PROJECT_ID}/env?limit=100&since=${next}")"
-    result="$(jq -s '.[0].envs += .[1].envs | .[0]' \
+    result="$(jq -s '.[0].envs += .[1].envs | .[0].pagination = .[1].pagination | .[0]' \
       <(echo "$result") <(echo "$page"))"
   done
   echo "$result"
