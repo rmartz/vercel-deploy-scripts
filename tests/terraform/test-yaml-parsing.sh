@@ -42,6 +42,11 @@ check(str(staging['BARE_INTEGER']) == '12345',
 check(staging['QUOTED_BOOLEAN_LIKE'] == 'true',
       "YAML-quoted '\"true\"' parses to string 'true', not bool")
 
+check(staging['BARE_BOOLEAN'] == True,
+      "Bare YAML boolean 'true' parses as Python bool True")
+check(str(staging['BARE_BOOLEAN']).lower() == 'true',
+      "str(True).lower() == 'true' (lowercased for Vercel, not 'True')")
+
 check(staging['PLAIN_STRING'] == 'hello-world',
       "Plain string parses correctly")
 

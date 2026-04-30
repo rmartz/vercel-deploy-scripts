@@ -2,5 +2,6 @@ PLAIN_STRING: hello-world
 YAML_QUOTED_STRING: "5432"
 BARE_INTEGER: 12345
 QUOTED_BOOLEAN_LIKE: "true"
+BARE_BOOLEAN: true
 DATABASE_URL: "postgres://user:pass@host/db"
 EMPTY_VALUE: ""

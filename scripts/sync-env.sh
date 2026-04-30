@@ -6,7 +6,7 @@ SCRIPT_NAME="$(basename "$0")"
 # ─── Defaults ─────────────────────────────────────────────────────────────────
 
 TARGET_ENV="all"
-ENV_FILE=".env"
+DEPLOYMENT_DIR="deployment"
 DRY_RUN=false
 
 VERCEL_API="https://api.vercel.com"
@@ -22,19 +22,20 @@ usage() {
   cat <<EOF
 Usage: $SCRIPT_NAME [OPTIONS]
 
-Upsert public (non-secret) environment variables to a Vercel project from a
-local .env file. Existing variables are updated in place; missing ones are
-created. Variables not present in the file are left untouched.
+Upsert public (non-secret) environment variables to a Vercel project from
+Terraform deployment configuration files. Reads the list of active environments
+from deployment/environments.yml and per-environment values from
+deployment/{env}.yml, using the same source of truth as Terraform.
+
+Existing variables are updated in place; missing ones are created as plain-type
+records. Variables not present in the config files are left untouched.
 
 OPTIONS:
-  --env <env>      Target Vercel environment (default: all)
-                     production   Vercel production environment
-                     preview      Vercel preview environment (alias: staging)
-                     development  Vercel development environment
-                     all          All three environments
-  --file <path>    Path to .env file to read from (default: .env)
-  --dry-run        Print what would change without making any API calls
-  -h, --help       Show this help
+  --env <name>             Target a specific environment by name as listed in
+                           environments.yml (default: all active environments)
+  --deployment-dir <path>  Path to deployment config directory (default: deployment/)
+  --dry-run                Print what would change without making any API calls
+  -h, --help               Show this help
 
 REQUIRED ENVIRONMENT VARIABLES:
   VERCEL_TOKEN       Vercel API token with project read/write access
@@ -43,15 +44,29 @@ OPTIONAL ENVIRONMENT VARIABLES:
   VERCEL_PROJECT_ID  Vercel project ID (auto-detected from .vercel/project.json)
   VERCEL_TEAM_ID     Vercel team/org ID (auto-detected from .vercel/project.json)
 
+ENVIRONMENT MAPPING (matches Terraform target_map):
+  production  → production (Vercel target)
+  staging     → preview   (Vercel target)
+  preview     → preview   (Vercel target)
+  development → development (Vercel target)
+  <other>     → passed through as-is
+
+DEPLOYMENT DIRECTORY LAYOUT:
+  deployment/
+    environments.yml   # active: [production, staging, ...]
+    production.yml     # KEY: value pairs for production
+    staging.yml        # KEY: value pairs for staging
+    ...
+
 EXAMPLES:
-  # Sync .env to all environments
+  # Sync all active environments
   sync-env
 
-  # Sync .env.production to the production environment only
-  sync-env --env production --file .env.production
+  # Sync only the staging environment
+  sync-env --env staging
 
   # Preview what would change without touching Vercel
-  sync-env --dry-run --file .env.staging
+  sync-env --dry-run
 EOF
 }
 
@@ -68,14 +83,12 @@ parse_args() {
     case "$1" in
       --env)
         TARGET_ENV="${2:-}"
-        [[ "$TARGET_ENV" =~ ^(production|preview|staging|development|all)$ ]] \
-          || err "--env must be one of: production, preview, staging, development, all"
-        [[ "$TARGET_ENV" == "staging" ]] && TARGET_ENV="preview"
+        [[ -n "$TARGET_ENV" ]] || err "--env requires an environment name or 'all'"
         shift 2
         ;;
-      --file)
-        ENV_FILE="${2:-}"
-        [[ -n "$ENV_FILE" ]] || err "--file requires a path"
+      --deployment-dir)
+        DEPLOYMENT_DIR="${2:-}"
+        [[ -n "$DEPLOYMENT_DIR" ]] || err "--deployment-dir requires a path"
         shift 2
         ;;
       --dry-run)
@@ -97,12 +110,15 @@ parse_args() {
 
 check_prereqs() {
   local missing=""
-  command -v jq   &>/dev/null || missing="${missing} jq"
-  command -v curl &>/dev/null || missing="${missing} curl"
+  command -v jq      &>/dev/null || missing="${missing} jq"
+  command -v curl    &>/dev/null || missing="${missing} curl"
+  command -v python3 &>/dev/null || missing="${missing} python3"
   [[ -n "$missing" ]] && err "Missing required tools:$missing"
 
   [[ -n "${VERCEL_TOKEN:-}" ]] || err "VERCEL_TOKEN environment variable is required"
-  [[ -f "$ENV_FILE" ]] || err "Env file not found: $ENV_FILE"
+  [[ -d "$DEPLOYMENT_DIR" ]] || err "Deployment directory not found: $DEPLOYMENT_DIR"
+  [[ -f "$DEPLOYMENT_DIR/environments.yml" ]] \
+    || err "environments.yml not found: $DEPLOYMENT_DIR/environments.yml"
 }
 
 # ─── Project detection ────────────────────────────────────────────────────────
@@ -166,35 +182,44 @@ list_env_vars() {
 
 # ─── Target resolution ────────────────────────────────────────────────────────
 
-target_envs() {
-  case "$TARGET_ENV" in
+# Maps deployment environment names to Vercel target names.
+# Matches the target_map defined in templates/terraform/main.tf.
+vercel_target() {
+  case "$1" in
     production)  echo "production" ;;
+    staging)     echo "preview" ;;
     preview)     echo "preview" ;;
     development) echo "development" ;;
-    all)         printf 'production\npreview\ndevelopment\n' ;;
+    *)           echo "$1" ;;
   esac
 }
 
-# ─── .env file parsing ────────────────────────────────────────────────────────
+# ─── Deployment config parsing ────────────────────────────────────────────────
 
-# Reads KEY=VALUE lines from a .env file, skipping comments and blank lines.
-# Strips optional surrounding single or double quotes from values.
-parse_env_file() {
-  local file="$1"
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    [[ "$line" =~ ^[[:space:]]*# ]] && continue
-    [[ "$line" =~ ^[[:space:]]*$ ]] && continue
-    [[ "$line" == *=* ]]            || continue
-    local key="${line%%=*}"
-    local value="${line#*=}"
-    # Strip surrounding quotes only when both ends use the same quote character
-    if [[ "${value:0:1}" == '"' && "${value: -1}" == '"' ]]; then
-      value="${value:1:${#value}-2}"
-    elif [[ "${value:0:1}" == "'" && "${value: -1}" == "'" ]]; then
-      value="${value:1:${#value}-2}"
-    fi
-    printf '%s\0%s\0' "$key" "$value"
-  done < "$file"
+# Prints active environment names from environments.yml, one per line.
+list_active_envs() {
+  python3 - "${DEPLOYMENT_DIR}/environments.yml" <<'PYEOF'
+import yaml, sys
+with open(sys.argv[1]) as f:
+    data = yaml.safe_load(f)
+for env in (data.get('active') or []):
+    print(env)
+PYEOF
+}
+
+# Reads a deployment YAML file and outputs null-delimited key\0value\0 pairs.
+# Skips null and empty values, matching Terraform's `if v != null && v != ""` guard.
+# Numeric and boolean YAML values are stringified.
+parse_deployment_env() {
+  python3 - "$1" <<'PYEOF'
+import yaml, sys
+with open(sys.argv[1]) as f:
+    data = yaml.safe_load(f) or {}
+for k, v in data.items():
+    sv = str(v).lower() if isinstance(v, bool) else (str(v) if v is not None else '')
+    if sv:
+        sys.stdout.buffer.write((str(k) + '\0' + sv + '\0').encode())
+PYEOF
 }
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
@@ -204,24 +229,40 @@ main() {
   check_prereqs
   detect_project
 
-  # Load key=value pairs into parallel arrays (bash 3.2 compatible)
-  local keys=() values=()
-  local key value
-  while IFS= read -r -d $'\0' key && IFS= read -r -d $'\0' value; do
-    keys+=("$key")
-    values+=("$value")
-  done < <(parse_env_file "$ENV_FILE")
+  local active_envs
+  active_envs="$(list_active_envs)"
+  [[ -n "$active_envs" ]] \
+    || err "No active environments found in ${DEPLOYMENT_DIR}/environments.yml"
 
-  local total="${#keys[@]}"
-  [[ "$total" -gt 0 ]] || err "No KEY=VALUE pairs found in $ENV_FILE"
-  log "Read $total variable(s) from $ENV_FILE"
+  local env_list
+  if [[ "$TARGET_ENV" == "all" ]]; then
+    env_list="$active_envs"
+  else
+    echo "$active_envs" | grep -qx "$TARGET_ENV" \
+      || err "--env '$TARGET_ENV' not in active environments: $(echo "$active_envs" | paste -sd ', ' -)"
+    env_list="$TARGET_ENV"
+  fi
+
+  local env_count
+  env_count="$(echo "$env_list" | grep -c .)"
 
   if [[ "$DRY_RUN" == true ]]; then
     log "Dry run — no changes will be made"
-    local i
-    for (( i = 0; i < total; i++ )); do
-      log "  Would sync: ${keys[$i]}"
-    done
+    while IFS= read -r env_name; do
+      [[ -z "$env_name" ]] && continue
+      local env_file="${DEPLOYMENT_DIR}/${env_name}.yml"
+      if [[ ! -f "$env_file" ]]; then
+        warn "No config file for '$env_name': $env_file"
+        continue
+      fi
+      local vercel_env
+      vercel_env="$(vercel_target "$env_name")"
+      log "Would sync $env_name → $vercel_env:"
+      local key value
+      while IFS= read -r -d $'\0' key && IFS= read -r -d $'\0' value; do
+        log "  Would sync: $key"
+      done < <(parse_deployment_env "$env_file")
+    done <<< "$env_list"
     return
   fi
 
@@ -230,12 +271,33 @@ main() {
 
   local total_updated=0 total_created=0
 
-  while IFS= read -r vercel_env; do
-    [[ -z "$vercel_env" ]] && continue
-    log "Syncing to $vercel_env..."
+  while IFS= read -r env_name; do
+    [[ -z "$env_name" ]] && continue
 
-    local updated=0 created=0
-    local i
+    local env_file="${DEPLOYMENT_DIR}/${env_name}.yml"
+    if [[ ! -f "$env_file" ]]; then
+      warn "No config file for '$env_name': $env_file — skipping"
+      continue
+    fi
+
+    local vercel_env
+    vercel_env="$(vercel_target "$env_name")"
+    log "Syncing $env_name → $vercel_env..."
+
+    local keys=() values=()
+    local key value
+    while IFS= read -r -d $'\0' key && IFS= read -r -d $'\0' value; do
+      keys+=("$key")
+      values+=("$value")
+    done < <(parse_deployment_env "$env_file")
+
+    local total="${#keys[@]}"
+    if [[ "$total" -eq 0 ]]; then
+      warn "No variables found in $env_file — skipping"
+      continue
+    fi
+
+    local updated=0 created=0 i
     for (( i = 0; i < total; i++ )); do
       local k="${keys[$i]}"
       local v="${values[$i]}"
@@ -264,14 +326,14 @@ main() {
       fi
     done
 
-    log "  $vercel_env — $created created, $updated updated"
+    log "  $env_name — $created created, $updated updated"
     (( total_created += created )) || true
     (( total_updated += updated )) || true
 
     # Re-fetch so subsequent environments see up-to-date state
-    [[ "$TARGET_ENV" == "all" ]] && all_envs="$(list_env_vars)"
+    [[ "$env_count" -gt 1 ]] && all_envs="$(list_env_vars)"
 
-  done < <(target_envs)
+  done <<< "$env_list"
 
   log "Done — $total_created created, $total_updated updated across all target environments."
 }
