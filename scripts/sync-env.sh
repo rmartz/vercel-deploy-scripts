@@ -216,7 +216,7 @@ import yaml, sys
 with open(sys.argv[1]) as f:
     data = yaml.safe_load(f) or {}
 for k, v in data.items():
-    sv = str(v) if v is not None else ''
+    sv = str(v).lower() if isinstance(v, bool) else (str(v) if v is not None else '')
     if sv:
         sys.stdout.buffer.write((str(k) + '\0' + sv + '\0').encode())
 PYEOF
