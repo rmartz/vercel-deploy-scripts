@@ -7,7 +7,8 @@
     "generate-local-env": "./scripts/generate-local-env.sh",
     "init-terraform": "./scripts/init-terraform.sh",
     "rotate-keys": "./scripts/rotate-keys.sh",
-    "secrets-check": "./scripts/secrets-check.sh"
+    "secrets-check": "./scripts/secrets-check.sh",
+    "sync-env": "./scripts/sync-env.sh"
   },
   "files": [
     "scripts/",
