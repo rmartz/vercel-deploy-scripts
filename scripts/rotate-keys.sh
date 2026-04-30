@@ -276,7 +276,7 @@ target_envs() {
     production)  echo "production" ;;
     preview)     echo "preview" ;;
     development) echo "development" ;;
-    all)         printf 'production\npreview\ndevelopment' ;;
+    all)         printf 'production\npreview\ndevelopment\n' ;;
   esac
 }
 
@@ -706,12 +706,16 @@ trigger_redeployments() {
     [[ -n "${VERCEL_TEAM_ID:-}" ]] && list_url="${list_url}&teamId=${VERCEL_TEAM_ID}"
 
     local deployments latest_id latest_url
-    deployments="$(curl -sf -H "Authorization: Bearer ${VERCEL_TOKEN}" "$list_url")"
-    latest_id="$(echo "$deployments" | jq -r '.deployments[0].uid // empty')"
-    latest_url="$(echo "$deployments" | jq -r '.deployments[0].url // empty')"
+    # Strip control characters before parsing: the v6 API occasionally includes
+    # non-printable bytes that cause jq to fail or return empty. tr removes
+    # everything below 0x20 except TAB (\011), LF (\012), and CR (\015).
+    deployments="$(curl -sf -H "Authorization: Bearer ${VERCEL_TOKEN}" "$list_url" \
+      | tr -d '\000-\010\013\014\016-\037')" || true
+    latest_id="$(echo "$deployments" | jq -r '.deployments[0].uid // empty' 2>/dev/null || true)"
+    latest_url="$(echo "$deployments" | jq -r '.deployments[0].url // empty' 2>/dev/null || true)"
 
     if [[ -z "$latest_id" ]]; then
-      warn "No existing deployment found for '$vercel_env' — skipping redeployment"
+      warn "No READY deployment found for '$vercel_env' — skipping redeployment"
       continue
     fi
 
