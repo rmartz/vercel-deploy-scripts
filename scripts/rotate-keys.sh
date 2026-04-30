@@ -68,8 +68,9 @@ OPTIONS:
                           production   Vercel production environment
                           preview      Vercel preview environment (alias: staging)
                           development  Vercel development environment
-                          all          All environments that have the key set,
-                                       plus any that are missing it (default)
+                          all          All environments that already have the key
+                                       configured; unconfigured environments are
+                                       skipped (use --env <env> to explicitly add)
   --no-invalidate       Skip deleting old keys after redeployment
   -h, --help            Show this help
 
@@ -201,18 +202,6 @@ list_env_vars() {
   vercel_api "/v9/projects/${VERCEL_PROJECT_ID}/env"
 }
 
-# Returns the Vercel API env record (JSON) for a specific key and target
-# environment, or empty string if not found.
-find_env_record() {
-  local key="$1"
-  local target="$2"   # production | preview | development
-  local all_envs="$3" # pre-fetched JSON from list_env_vars
-
-  echo "$all_envs" | jq -r \
-    --arg k "$key" --arg t "$target" \
-    '.envs[] | select(.key == $k and (.target | index($t) != null))'
-}
-
 # Creates a single Vercel env var record for one target environment.
 # Uses jq --arg for the value to correctly handle newlines and special chars.
 create_env_record() {
@@ -276,10 +265,8 @@ set_env_for_target() {
 
 # ─── Target resolution ────────────────────────────────────────────────────────
 
-# Vercel environment names to operate on.
-# "all" expands to the three canonical environments; each provider's rotation
-# function will skip environments that have no existing key and add the key to
-# environments that are missing it (based on the project's actual configuration).
+# Vercel environment names to operate on. "all" expands to the three canonical
+# environments; provider rotation functions skip any that have no existing key.
 target_envs() {
   case "$TARGET_ENV" in
     production)  echo "production" ;;
@@ -400,7 +387,7 @@ create_gcp_key() {
   gcloud iam service-accounts keys create "$output_file" \
     --iam-account="$FIREBASE_SA_EMAIL" \
     --project="$FIREBASE_GCP_PROJECT" \
-    --quiet 2>/dev/null
+    --quiet
 }
 
 # Lists only user-managed service account keys for the project's SA.
@@ -409,7 +396,7 @@ list_user_managed_gcp_keys() {
     --iam-account="$FIREBASE_SA_EMAIL" \
     --project="$FIREBASE_GCP_PROJECT" \
     --managed-by=user \
-    --format='value(name.basename())' 2>/dev/null
+    --format='value(name.basename())'
 }
 
 rotate_firebase() {
@@ -580,11 +567,24 @@ rotate_sentry() {
   new_key_id="$(echo "$new_key" | jq -r '.id')"
   log "  New Sentry key ID: $new_key_id"
 
-  # Update all target environments with the new DSN
+  # Update target environments with the new DSN. For "--env all", skip any
+  # environment that has no existing DSN configured (matches Firebase behaviour).
   while IFS= read -r vercel_env; do
     [[ -z "$vercel_env" ]] && continue
     local current_envs
     current_envs="$(list_env_vars)"
+
+    if [[ "$TARGET_ENV" == "all" ]]; then
+      local existing_dsn_id
+      existing_dsn_id="$(echo "$current_envs" | jq -r \
+        --arg k "$dsn_key_name" --arg t "$vercel_env" \
+        'first(.envs[] | select(.key == $k and (.target | index($t) != null)) | .id) // empty')"
+      if [[ -z "$existing_dsn_id" ]]; then
+        log "  [$vercel_env] No existing $dsn_key_name — skipping (use --env $vercel_env to explicitly add)"
+        continue
+      fi
+    fi
+
     set_env_for_target "$dsn_key_name" "$new_dsn" "$vercel_env" "$current_envs" >/dev/null
   done < <(target_envs)
 
