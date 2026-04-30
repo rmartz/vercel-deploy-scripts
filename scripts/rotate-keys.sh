@@ -182,12 +182,12 @@ vercel_api() {
   fi
 
   if [[ -n "$data" ]]; then
-    curl -sf -X "$method" \
+    curl -sf --http1.1 -X "$method" \
       -H "Authorization: Bearer ${VERCEL_TOKEN}" \
       -H "Content-Type: application/json" \
       -d "$data" "$url"
   else
-    curl -sf -X "$method" \
+    curl -sf --http1.1 -X "$method" \
       -H "Authorization: Bearer ${VERCEL_TOKEN}" \
       -H "Content-Type: application/json" \
       "$url"
@@ -721,7 +721,8 @@ trigger_redeployments() {
 
     log "  Redeploying $vercel_env ($latest_url)..."
     local new_deployment new_id
-    new_deployment="$(vercel_api "/v13/deployments/${latest_id}/redeploy" POST '{}')"
+    new_deployment="$(vercel_api "/v13/deployments" POST \
+      "$(jq -n --arg id "$latest_id" '{deploymentId: $id}')")"
     new_id="$(echo "$new_deployment" | jq -r '.id')"
     DEPLOYMENT_IDS+=("$new_id")
     log "  Queued: $new_id"
