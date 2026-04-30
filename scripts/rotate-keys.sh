@@ -19,11 +19,15 @@ VERCEL_TEAM_ID="${VERCEL_TEAM_ID:-}"
 HAS_FIREBASE=false
 HAS_SENTRY=false
 
-# Maps Vercel env name → old GCP key ID (populated during rotation, consumed
-# during invalidation). Format: "production:KEY_ID preview:KEY_ID ..."
-# Stored as parallel arrays for bash 3.2 compatibility.
+# Old key tracking (parallel arrays, bash 3.2 compatible):
+#   OLD_FIREBASE_ENVS[i]        — Vercel environment name
+#   OLD_FIREBASE_KEYS[i]        — GCP key ID that was replaced
+#   OLD_FIREBASE_SA_EMAILS[i]   — SA email that owns the key
+#   OLD_FIREBASE_GCP_PROJECTS[i]— GCP project for that SA
 OLD_FIREBASE_ENVS=()
 OLD_FIREBASE_KEYS=()
+OLD_FIREBASE_SA_EMAILS=()
+OLD_FIREBASE_GCP_PROJECTS=()
 FIREBASE_SA_EMAIL=""
 FIREBASE_GCP_PROJECT=""
 
@@ -380,21 +384,63 @@ get_firebase_key_id_for_env() {
   fi
 }
 
+# Returns "sa_email gcp_project" for the Firebase service account used by a
+# specific Vercel environment, or empty string if that environment has no key.
+# Used to ensure each environment's new key is created under the correct SA
+# (e.g. preview/development use the staging SA, production uses the prod SA).
+get_firebase_sa_for_env() {
+  local vercel_env="$1"
+  local all_envs="$2"
+
+  if [[ "${FIREBASE_KEY_PATTERN:-}" == "json" ]]; then
+    local record_id
+    record_id="$(echo "$all_envs" | jq -r \
+      --arg t "$vercel_env" \
+      'first(.envs[] | select(.key == "FIREBASE_SERVICE_ACCOUNT" and (.target | index($t) != null)) | .id) // empty')"
+    if [[ -n "$record_id" ]]; then
+      local sa_json email project
+      sa_json="$(get_env_value "$record_id")"
+      email="$(echo "$sa_json" | jq -r '.client_email // empty')"
+      project="$(echo "$sa_json" | jq -r '.project_id // empty')"
+      [[ -n "$email" ]] && echo "$email $project"
+    fi
+  else
+    local ce_id
+    ce_id="$(echo "$all_envs" | jq -r \
+      --arg t "$vercel_env" \
+      'first(.envs[] | select(.key == "FIREBASE_CLIENT_EMAIL" and (.target | index($t) != null)) | .id) // empty')"
+    if [[ -n "$ce_id" ]]; then
+      local email project=""
+      email="$(get_env_value "$ce_id")"
+      local pid_id
+      pid_id="$(echo "$all_envs" | jq -r \
+        --arg t "$vercel_env" \
+        'first(.envs[] | select(.key == "FIREBASE_PROJECT_ID" and (.target | index($t) != null)) | .id) // empty')"
+      [[ -n "$pid_id" ]] && project="$(get_env_value "$pid_id")"
+      [[ -n "$email" ]] && echo "$email ${project:-$FIREBASE_GCP_PROJECT}"
+    fi
+  fi
+}
+
 # Creates a new GCP user-managed service account key and returns the path to
 # the JSON file (caller must ensure file is eventually deleted).
 create_gcp_key() {
   local output_file="$1"
+  local sa_email="$2"
+  local gcp_project="$3"
   gcloud iam service-accounts keys create "$output_file" \
-    --iam-account="$FIREBASE_SA_EMAIL" \
-    --project="$FIREBASE_GCP_PROJECT" \
+    --iam-account="$sa_email" \
+    --project="$gcp_project" \
     --quiet
 }
 
-# Lists only user-managed service account keys for the project's SA.
+# Lists only user-managed service account keys for the given SA.
 list_user_managed_gcp_keys() {
+  local sa_email="$1"
+  local gcp_project="$2"
   gcloud iam service-accounts keys list \
-    --iam-account="$FIREBASE_SA_EMAIL" \
-    --project="$FIREBASE_GCP_PROJECT" \
+    --iam-account="$sa_email" \
+    --project="$gcp_project" \
     --managed-by=user \
     --format='value(name.basename())'
 }
@@ -432,11 +478,36 @@ rotate_firebase() {
       log "  [$vercel_env] Current key ID: $old_key_id"
     fi
 
-    log "  [$vercel_env] Rotating..."
+    # Determine which Firebase SA owns this Vercel environment. In a two-env
+    # project, Production uses the prod SA and Preview/Development use the
+    # staging SA. Read from the existing Vercel record — the single global
+    # FIREBASE_SA_EMAIL comes from whichever record the API returns first and
+    # is not reliable across environments.
+    local env_sa_info env_sa_email env_gcp_project
+    env_sa_info="$(get_firebase_sa_for_env "$vercel_env" "$all_envs")"
+    env_sa_email="${env_sa_info%% *}"
+    env_gcp_project="${env_sa_info##* }"
+
+    # If adding to an environment with no existing key, infer the SA:
+    # preview/development inherit from whichever peer has a key; production
+    # falls back to the global (set by detect_firebase_pattern).
+    if [[ -z "$env_sa_email" ]]; then
+      if [[ "$vercel_env" != "production" ]]; then
+        local peer_info
+        peer_info="$(get_firebase_sa_for_env "preview" "$all_envs")"
+        [[ -z "$peer_info" ]] && peer_info="$(get_firebase_sa_for_env "development" "$all_envs")"
+        env_sa_email="${peer_info%% *}"
+        env_gcp_project="${peer_info##* }"
+      fi
+      [[ -z "$env_sa_email" ]] && env_sa_email="$FIREBASE_SA_EMAIL"
+      [[ -z "$env_gcp_project" ]] && env_gcp_project="$FIREBASE_GCP_PROJECT"
+    fi
+
+    log "  [$vercel_env] Rotating... (SA: $env_sa_email)"
 
     # Create a fresh GCP service account key for this specific environment
     local new_key_file="$TEMP_DIR/key-${vercel_env}.json"
-    create_gcp_key "$new_key_file"
+    create_gcp_key "$new_key_file" "$env_sa_email" "$env_gcp_project"
 
     local new_sa_json new_key_id
     new_sa_json="$(cat "$new_key_file")"
@@ -467,6 +538,8 @@ rotate_firebase() {
     if [[ -n "$old_key_id" ]]; then
       OLD_FIREBASE_ENVS+=("$vercel_env")
       OLD_FIREBASE_KEYS+=("$old_key_id")
+      OLD_FIREBASE_SA_EMAILS+=("$env_sa_email")
+      OLD_FIREBASE_GCP_PROJECTS+=("$env_gcp_project")
     fi
 
     rotated_any=true
@@ -672,52 +745,71 @@ wait_for_deployments() {
 invalidate_firebase_keys() {
   log "Invalidating old Firebase keys (sweeping all non-active user-managed keys)..."
 
-  # Build the set of key IDs currently active in Vercel across all three
-  # standard environments. This is the authoritative "keep" list — anything
-  # outside it is a stray key (old rotation remnants, partially leaked keys,
-  # etc.) and should be removed.
   local all_envs_fresh
   all_envs_fresh="$(list_env_vars)"
 
+  # Build the active key ID set and discover all unique Firebase SAs in use.
+  # Checking all three standard environments handles two-env projects (where
+  # production uses one SA and preview/development use the staging SA) as well
+  # as prod-only projects (single SA across all environments).
   local active_keys=""
+  local sa_pair_list=""  # "email:project" entries, space-separated, deduplicated
+
   for check_env in production preview development; do
-    local kid
+    local kid sa_info
     kid="$(get_firebase_key_id_for_env "$check_env" "$all_envs_fresh")"
+    sa_info="$(get_firebase_sa_for_env "$check_env" "$all_envs_fresh")"
+
     if [[ -n "$kid" ]]; then
       active_keys="${active_keys} ${kid}"
       log "  Active key [$check_env]: $kid"
     fi
+
+    if [[ -n "$sa_info" ]]; then
+      local pair="${sa_info%% *}:${sa_info##* }"  # "email:project"
+      if ! echo "$sa_pair_list" | grep -qF "$pair"; then
+        sa_pair_list="${sa_pair_list} ${pair}"
+      fi
+    fi
   done
 
-  local user_keys
-  user_keys="$(list_user_managed_gcp_keys)"
+  # Sweep non-active user-managed keys from every SA referenced in this project
+  local deleted_total=0
+  local pair
+  for pair in $sa_pair_list; do
+    local sa_email="${pair%%:*}"
+    local gcp_project="${pair#*:}"
+    log "  Sweeping SA: $sa_email"
 
-  local deleted=0
-  while IFS= read -r key_id; do
-    [[ -z "$key_id" ]] && continue
+    local user_keys
+    user_keys="$(list_user_managed_gcp_keys "$sa_email" "$gcp_project")"
 
-    if echo "$active_keys" | grep -qF "$key_id"; then
-      continue  # currently active — keep
-    fi
+    local deleted=0
+    while IFS= read -r key_id; do
+      [[ -z "$key_id" ]] && continue
+      if echo "$active_keys" | grep -qF "$key_id"; then
+        continue  # currently active — keep
+      fi
+      log "  Deleting stray key: $key_id"
+      if gcloud iam service-accounts keys delete "$key_id" \
+          --iam-account="$sa_email" \
+          --project="$gcp_project" \
+          --quiet; then
+        log "  Deleted: $key_id"
+        (( deleted++ )) || true
+      else
+        warn "Failed to delete key $key_id — remove manually:"
+        warn "  gcloud iam service-accounts keys delete $key_id --iam-account=$sa_email"
+      fi
+    done <<< "$user_keys"
 
-    log "  Deleting stray key: $key_id"
-    if gcloud iam service-accounts keys delete "$key_id" \
-        --iam-account="$FIREBASE_SA_EMAIL" \
-        --project="$FIREBASE_GCP_PROJECT" \
-        --quiet 2>/dev/null; then
-      log "  Deleted: $key_id"
-      (( deleted++ )) || true
+    if [[ $deleted -eq 0 ]]; then
+      log "  No stray keys for $sa_email."
     else
-      warn "Failed to delete key $key_id — remove manually:"
-      warn "  gcloud iam service-accounts keys delete $key_id --iam-account=$FIREBASE_SA_EMAIL"
+      log "  Deleted $deleted stray key(s) for $sa_email."
+      (( deleted_total += deleted )) || true
     fi
-  done <<< "$user_keys"
-
-  if [[ $deleted -eq 0 ]]; then
-    log "  No stray keys found."
-  else
-    log "  Deleted $deleted stray key(s)."
-  fi
+  done
 }
 
 invalidate_sentry_key() {
@@ -766,7 +858,7 @@ main() {
     local i
     local count="${#OLD_FIREBASE_KEYS[@]}"
     for (( i = 0; i < count; i++ )); do
-      warn "Old Firebase key to remove: ${OLD_FIREBASE_KEYS[$i]} (${OLD_FIREBASE_ENVS[$i]}, account: $FIREBASE_SA_EMAIL)"
+      warn "Old Firebase key to remove: ${OLD_FIREBASE_KEYS[$i]} (${OLD_FIREBASE_ENVS[$i]}, account: ${OLD_FIREBASE_SA_EMAILS[$i]:-$FIREBASE_SA_EMAIL})"
     done
     [[ -n "${OLD_SENTRY_KEY_ID:-}" ]] \
       && warn "Old Sentry key to remove: $OLD_SENTRY_KEY_ID (project: $SENTRY_ORG_SLUG/$SENTRY_PROJECT_SLUG)"
