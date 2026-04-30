@@ -151,7 +151,17 @@ vercel_api() {
 }
 
 list_env_vars() {
-  vercel_api "/v9/projects/${VERCEL_PROJECT_ID}/env"
+  local url="/v9/projects/${VERCEL_PROJECT_ID}/env?limit=100"
+  local result next
+  result="$(vercel_api "$url")"
+  # Follow pagination until exhausted
+  while next="$(echo "$result" | jq -r '.pagination.next // empty')" && [[ -n "$next" ]]; do
+    local page
+    page="$(vercel_api "/v9/projects/${VERCEL_PROJECT_ID}/env?limit=100&since=${next}")"
+    result="$(jq -s '.[0].envs += .[1].envs | .[0]' \
+      <(echo "$result") <(echo "$page"))"
+  done
+  echo "$result"
 }
 
 # ─── Target resolution ────────────────────────────────────────────────────────
@@ -177,9 +187,12 @@ parse_env_file() {
     [[ "$line" == *=* ]]            || continue
     local key="${line%%=*}"
     local value="${line#*=}"
-    # Strip surrounding quotes
-    value="${value#\"}" ; value="${value%\"}"
-    value="${value#\'}" ; value="${value%\'}"
+    # Strip surrounding quotes only when both ends use the same quote character
+    if [[ "${value:0:1}" == '"' && "${value: -1}" == '"' ]]; then
+      value="${value:1:${#value}-2}"
+    elif [[ "${value:0:1}" == "'" && "${value: -1}" == "'" ]]; then
+      value="${value:1:${#value}-2}"
+    fi
     printf '%s\0%s\0' "$key" "$value"
   done < "$file"
 }
