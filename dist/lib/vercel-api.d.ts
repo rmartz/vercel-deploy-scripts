@@ -33,7 +33,7 @@ export declare class VercelClient {
     createEnvVar(key: string, value: string, target: string, type?: "plain" | "encrypted"): Promise<VercelEnvVar>;
     updateEnvVar(envId: string, value: string): Promise<void>;
     deleteEnvVar(envId: string): Promise<void>;
-    findEnvVar(envs: VercelEnvVar[], key: string, target: string): Promise<VercelEnvVar | undefined>;
+    findEnvVar(envs: VercelEnvVar[], key: string, target: string): VercelEnvVar | undefined;
     setEnvForTarget(key: string, value: string, target: string, allEnvs: VercelEnvVar[], type?: "plain" | "encrypted"): Promise<string>;
     getLatestDeployment(target: "production" | "staging"): Promise<VercelDeployment | null>;
     triggerRedeployment(deploymentId: string, name: string, target: string): Promise<string>;

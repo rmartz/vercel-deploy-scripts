@@ -187,7 +187,7 @@ async function run(opts) {
         let updated = 0;
         for (const key of keys) {
             const value = vars[key];
-            const existing = await client.findEnvVar(allEnvs.envs, key, target);
+            const existing = client.findEnvVar(allEnvs.envs, key, target);
             if (existing) {
                 await client.updateEnvVar(existing.id, value);
                 (0, logger_1.log)(`  Updated : ${key}`);

@@ -180,7 +180,7 @@ export async function run(opts: Options): Promise<void> {
 
     for (const key of keys) {
       const value = vars[key];
-      const existing = await client.findEnvVar(allEnvs.envs, key, target);
+      const existing = client.findEnvVar(allEnvs.envs, key, target);
 
       if (existing) {
         await client.updateEnvVar(existing.id, value);

@@ -303,7 +303,7 @@ async function rotateFirebase(opts, client, tempDir) {
     if (!rotatedAny)
         (0, logger_1.err)("No Firebase keys rotated — check --env and project configuration");
     (0, logger_1.log)("Firebase key rotation complete.");
-    return oldKeys;
+    return { oldKeys, fp };
 }
 async function sentryRequest(path, method = "GET", body) {
     const token = process.env.SENTRY_AUTH_TOKEN;
@@ -493,8 +493,7 @@ async function run(opts) {
         let fp = null;
         let oldSentryKeyId = "";
         if (hasFirebase) {
-            fp = await _detectFirebasePattern(allEnvs.envs, client);
-            oldFirebaseKeys = await rotateFirebase(opts, client, tempDir);
+            ({ oldKeys: oldFirebaseKeys, fp } = await rotateFirebase(opts, client, tempDir));
         }
         if (hasSentry) {
             oldSentryKeyId = await rotateSentry(opts, client);

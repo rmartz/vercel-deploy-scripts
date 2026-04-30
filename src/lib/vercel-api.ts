@@ -107,11 +107,11 @@ export class VercelClient {
     await this.request(`/v9/projects/${this.projectId}/env/${envId}`, "DELETE");
   }
 
-  async findEnvVar(
+  findEnvVar(
     envs: VercelEnvVar[],
     key: string,
     target: string,
-  ): Promise<VercelEnvVar | undefined> {
+  ): VercelEnvVar | undefined {
     return envs.find((e) => e.key === key && e.target.includes(target));
   }
 
@@ -122,14 +122,14 @@ export class VercelClient {
     allEnvs: VercelEnvVar[],
     type: "plain" | "encrypted" = "encrypted",
   ): Promise<string> {
-    const existing = await this.findEnvVar(allEnvs, key, target);
+    const existing = this.findEnvVar(allEnvs, key, target);
     if (existing) {
       await this.deleteEnvVar(existing.id);
     }
     const created = await this.createEnvVar(key, value, target, type);
     if (!created?.id) {
       const refetched = await this.listEnvVars();
-      const confirmed = await this.findEnvVar(refetched.envs, key, target);
+      const confirmed = this.findEnvVar(refetched.envs, key, target);
       if (!confirmed?.id) {
         throw new Error(
           `Failed to confirm ${key} was saved for ${target} after write`,

@@ -231,7 +231,7 @@ describe("run", () => {
       .mockResolvedValue({ envs: [], pagination: undefined });
     const mockCreateEnvVar = vi.fn().mockResolvedValue({ id: "env_new" });
     const mockUpdateEnvVar = vi.fn();
-    const mockFindEnvVar = vi.fn().mockResolvedValue(undefined);
+    const mockFindEnvVar = vi.fn().mockReturnValue(undefined);
     vi.spyOn(VercelClient.prototype, "listEnvVars").mockImplementation(
       mockListEnvVars,
     );
@@ -274,7 +274,7 @@ describe("run", () => {
       envs: [existing],
       pagination: undefined,
     });
-    vi.spyOn(VercelClient.prototype, "findEnvVar").mockResolvedValue(existing);
+    vi.spyOn(VercelClient.prototype, "findEnvVar").mockReturnValue(existing);
     const mockUpdate = vi.fn().mockResolvedValue(undefined);
     vi.spyOn(VercelClient.prototype, "updateEnvVar").mockImplementation(
       mockUpdate,

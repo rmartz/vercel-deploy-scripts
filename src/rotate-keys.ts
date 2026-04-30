@@ -297,7 +297,7 @@ async function rotateFirebase(
   opts: Options,
   client: VercelClient,
   tempDir: string,
-): Promise<OldFirebaseKey[]> {
+): Promise<{ oldKeys: OldFirebaseKey[]; fp: FirebasePattern }> {
   log("Rotating Firebase service account keys...");
 
   let allEnvs = await client.listEnvVars();
@@ -414,7 +414,7 @@ async function rotateFirebase(
   if (!rotatedAny)
     err("No Firebase keys rotated — check --env and project configuration");
   log("Firebase key rotation complete.");
-  return oldKeys;
+  return { oldKeys, fp };
 }
 
 // ─── Sentry rotation ──────────────────────────────────────────────────────────
@@ -716,8 +716,11 @@ export async function run(opts: Options): Promise<void> {
     let oldSentryKeyId = "";
 
     if (hasFirebase) {
-      fp = await _detectFirebasePattern(allEnvs.envs, client);
-      oldFirebaseKeys = await rotateFirebase(opts, client, tempDir);
+      ({ oldKeys: oldFirebaseKeys, fp } = await rotateFirebase(
+        opts,
+        client,
+        tempDir,
+      ));
     }
     if (hasSentry) {
       oldSentryKeyId = await rotateSentry(opts, client);
