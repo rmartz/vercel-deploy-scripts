@@ -9,12 +9,15 @@ import {
 } from "./lib/environments";
 import { FatalError, err, log, warn } from "./lib/logger";
 import { detectProject } from "./lib/project";
+import { run as rotateKeysRun } from "./rotate-keys";
 import { VercelClient } from "./lib/vercel-api";
 
 interface Options {
   targetEnv: string;
   deploymentDir: string;
   dryRun: boolean;
+  rotateKeys: boolean;
+  invalidateKeys: boolean;
 }
 
 const USAGE = `Usage: sync-env [OPTIONS]
@@ -27,10 +30,16 @@ deployment/{env}.yml, using the same source of truth as Terraform.
 Existing variables are updated in place; missing ones are created as plain-type
 records. Variables not present in the config files are left untouched.
 
+Pass --rotate-keys to also rotate Firebase and Sentry secrets in the same pass,
+triggering a single redeployment after both steps complete.
+
 OPTIONS:
   --env <name>             Target a specific environment by name as listed in
                            environments.yml (default: all active environments)
   --deployment-dir <path>  Path to deployment config directory (default: deployment/)
+  --rotate-keys            Also rotate Firebase/Sentry secrets and redeploy
+  --no-invalidate          (with --rotate-keys) Skip deleting old keys after
+                           redeployment
   --dry-run                Print what would change without making any API calls
   -h, --help               Show this help
 
@@ -40,6 +49,12 @@ REQUIRED ENVIRONMENT VARIABLES:
 OPTIONAL ENVIRONMENT VARIABLES:
   VERCEL_PROJECT_ID  Vercel project ID (auto-detected from .vercel/project.json)
   VERCEL_TEAM_ID     Vercel team/org ID (auto-detected from .vercel/project.json)
+
+ADDITIONAL VARIABLES (required with --rotate-keys):
+  SENTRY_AUTH_TOKEN  Sentry API token (required when Sentry DSN is present)
+  SENTRY_ORG         Sentry organization slug (required with Sentry rotation)
+  SENTRY_PROJECT     Sentry project slug (required with Sentry rotation)
+  GCLOUD_PROJECT     GCP project ID (auto-detected from service account JSON)
 
 ENVIRONMENT MAPPING (matches Terraform target_map):
   production  → production (Vercel target)
@@ -62,6 +77,9 @@ EXAMPLES:
   # Sync only the staging environment
   sync-env --env staging
 
+  # Sync public vars AND rotate secrets in one pass
+  sync-env --rotate-keys --env production
+
   # Preview what would change without touching Vercel
   sync-env --dry-run`;
 
@@ -70,6 +88,8 @@ export function parseArgs(argv: string[]): Options {
     targetEnv: "all",
     deploymentDir: "deployment",
     dryRun: false,
+    rotateKeys: false,
+    invalidateKeys: true,
   };
   const args = argv.slice(2);
 
@@ -84,6 +104,10 @@ export function parseArgs(argv: string[]): Options {
       if (!opts.deploymentDir) err("--deployment-dir requires a path");
     } else if (arg === "--dry-run") {
       opts.dryRun = true;
+    } else if (arg === "--rotate-keys") {
+      opts.rotateKeys = true;
+    } else if (arg === "--no-invalidate") {
+      opts.invalidateKeys = false;
     } else if (arg === "-h" || arg === "--help") {
       console.log(USAGE);
       process.exit(0);
@@ -145,6 +169,7 @@ export async function run(opts: Options): Promise<void> {
         log(`  Would sync: ${key}`);
       }
     }
+    if (opts.rotateKeys) log("Would rotate keys (skipped in dry-run)");
     return;
   }
 
@@ -203,6 +228,15 @@ export async function run(opts: Options): Promise<void> {
   log(
     `Done — ${totalCreated} created, ${totalUpdated} updated across all target environments.`,
   );
+
+  if (opts.rotateKeys) {
+    const rotateTarget =
+      opts.targetEnv === "all" ? "all" : vercelTarget(opts.targetEnv);
+    await rotateKeysRun({
+      targetEnv: rotateTarget,
+      invalidateKeys: opts.invalidateKeys,
+    });
+  }
 }
 
 async function main(): Promise<void> {

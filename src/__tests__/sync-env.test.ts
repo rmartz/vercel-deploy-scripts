@@ -15,6 +15,8 @@ describe("parseArgs", () => {
       targetEnv: "all",
       deploymentDir: "deployment",
       dryRun: false,
+      rotateKeys: false,
+      invalidateKeys: true,
     });
   });
 
@@ -36,6 +38,22 @@ describe("parseArgs", () => {
   it("--dry-run sets dryRun", () => {
     const opts = parseArgs(["node", "sync-env", "--dry-run"]);
     expect(opts.dryRun).toBe(true);
+  });
+
+  it("--rotate-keys sets rotateKeys", () => {
+    const opts = parseArgs(["node", "sync-env", "--rotate-keys"]);
+    expect(opts.rotateKeys).toBe(true);
+  });
+
+  it("--no-invalidate sets invalidateKeys to false", () => {
+    const opts = parseArgs(["node", "sync-env", "--no-invalidate"]);
+    expect(opts.invalidateKeys).toBe(false);
+  });
+
+  it("returns defaults for rotateKeys and invalidateKeys when not specified", () => {
+    const opts = parseArgs(["node", "sync-env"]);
+    expect(opts.rotateKeys).toBe(false);
+    expect(opts.invalidateKeys).toBe(true);
   });
 
   it("throws FatalError on unknown flag", () => {
@@ -292,8 +310,108 @@ describe("run", () => {
     const deployDir = makeDeploymentDir(["production"], {
       production: { MY_KEY: "new_value" },
     });
-    await run({ targetEnv: "all", deploymentDir: deployDir, dryRun: false });
+    await run({
+      targetEnv: "all",
+      deploymentDir: deployDir,
+      dryRun: false,
+      rotateKeys: false,
+      invalidateKeys: true,
+    });
 
     expect(mockUpdate).toHaveBeenCalledWith("env_existing", "new_value");
+  });
+
+  it("calls rotate-keys run after syncing when rotateKeys is true", async () => {
+    const rotateKeys = await import("../rotate-keys");
+    const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
+
+    const { VercelClient } = await import("../lib/vercel-api");
+    vi.spyOn(VercelClient.prototype, "listEnvVars").mockResolvedValue({
+      envs: [],
+      pagination: undefined,
+    });
+    vi.spyOn(VercelClient.prototype, "findEnvVar").mockReturnValue(undefined);
+    vi.spyOn(VercelClient.prototype, "createEnvVar").mockResolvedValue({
+      id: "x",
+      key: "k",
+      value: "v",
+      target: [],
+      type: "plain",
+    });
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const deployDir = makeDeploymentDir(["production"], {
+      production: { MY_KEY: "val" },
+    });
+    await run({
+      targetEnv: "all",
+      deploymentDir: deployDir,
+      dryRun: false,
+      rotateKeys: true,
+      invalidateKeys: true,
+    });
+
+    expect(mockRotate).toHaveBeenCalledWith({
+      targetEnv: "all",
+      invalidateKeys: true,
+    });
+  });
+
+  it("maps staging targetEnv to preview when calling rotate-keys", async () => {
+    const rotateKeys = await import("../rotate-keys");
+    const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
+
+    const { VercelClient } = await import("../lib/vercel-api");
+    vi.spyOn(VercelClient.prototype, "listEnvVars").mockResolvedValue({
+      envs: [],
+      pagination: undefined,
+    });
+    vi.spyOn(VercelClient.prototype, "findEnvVar").mockReturnValue(undefined);
+    vi.spyOn(VercelClient.prototype, "createEnvVar").mockResolvedValue({
+      id: "x",
+      key: "k",
+      value: "v",
+      target: [],
+      type: "plain",
+    });
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const deployDir = makeDeploymentDir(["staging"], {
+      staging: { MY_KEY: "val" },
+    });
+    await run({
+      targetEnv: "staging",
+      deploymentDir: deployDir,
+      dryRun: false,
+      rotateKeys: true,
+      invalidateKeys: false,
+    });
+
+    expect(mockRotate).toHaveBeenCalledWith({
+      targetEnv: "preview",
+      invalidateKeys: false,
+    });
+  });
+
+  it("skips key rotation during dry run", async () => {
+    const rotateKeys = await import("../rotate-keys");
+    const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const deployDir = makeDeploymentDir(["production"], {
+      production: { MY_KEY: "val" },
+    });
+    await run({
+      targetEnv: "all",
+      deploymentDir: deployDir,
+      dryRun: true,
+      rotateKeys: true,
+      invalidateKeys: true,
+    });
+
+    expect(mockRotate).not.toHaveBeenCalled();
   });
 });
