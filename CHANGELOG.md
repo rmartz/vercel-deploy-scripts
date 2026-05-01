@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v1.5.0...v1.6.0) (2026-05-01)
+
+
+### Features
+
+* migrate sync-env and rotate-keys to TypeScript ([83f9f9b](https://github.com/rmartz/vercel-deploy-scripts/commit/83f9f9b6af256eff127be02ee21471eddf5d7bcd)), closes [#25](https://github.com/rmartz/vercel-deploy-scripts/issues/25)
+
 # [1.5.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v1.4.0...v1.5.0) (2026-04-30)
 
 
