@@ -63,6 +63,12 @@ ENVIRONMENT MAPPING (matches Terraform target_map):
   development → development (Vercel target)
   <other>     → passed through as-is
 
+DEVELOPMENT EXCEPTION (--rotate-keys only):
+  When --rotate-keys is set, the public var sync step is skipped for
+  development environments. Development vars are managed locally via
+  generate-local-env and development targets have no canonical Vercel
+  deployment to redeploy. Key rotation still runs.
+
 DEPLOYMENT DIRECTORY LAYOUT:
   deployment/
     environments.yml   # active: [production, staging, ...]
@@ -157,6 +163,12 @@ export async function run(opts: Options): Promise<void> {
   if (opts.dryRun) {
     log("Dry run — no changes will be made");
     for (const envName of envList) {
+      if (opts.rotateKeys && envName === "development") {
+        log(
+          `  Would skip public var sync for development (vars managed locally via generate-local-env)`,
+        );
+        continue;
+      }
       const envFile = path.join(opts.deploymentDir, `${envName}.yml`);
       if (!fs.existsSync(envFile)) {
         warn(`No config file for '${envName}': ${envFile}`);
@@ -184,6 +196,12 @@ export async function run(opts: Options): Promise<void> {
   let totalUpdated = 0;
 
   for (const envName of envList) {
+    if (opts.rotateKeys && envName === "development") {
+      log(
+        `Skipping public var sync for development — vars are managed locally via generate-local-env`,
+      );
+      continue;
+    }
     const envFile = path.join(opts.deploymentDir, `${envName}.yml`);
     if (!fs.existsSync(envFile)) {
       warn(`No config file for '${envName}': ${envFile} — skipping`);
