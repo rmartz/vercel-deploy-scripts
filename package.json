@@ -21,7 +21,7 @@
   },
   "scripts": {
     "build": "tsc && chmod +x dist/sync-env.js dist/rotate-keys.js",
-    "prepack": "npm run build",
+    "prepare": "npm run build",
     "test": "bats tests/bats/",
     "test:ts": "vitest run"
   },
