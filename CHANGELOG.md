@@ -1,3 +1,10 @@
+# [1.7.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v1.6.0...v1.7.0) (2026-05-03)
+
+
+### Features
+
+* add --rotate-keys flag to sync-env for combined env sync and key rotation ([#28](https://github.com/rmartz/vercel-deploy-scripts/issues/28)) ([c78a7ff](https://github.com/rmartz/vercel-deploy-scripts/commit/c78a7ff936694e31628274600aa8881439927b12)), closes [#25](https://github.com/rmartz/vercel-deploy-scripts/issues/25)
+
 # [1.6.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v1.5.0...v1.6.0) (2026-05-01)
 
 
