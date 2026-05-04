@@ -68,13 +68,3 @@ function readCliToken(): string | undefined {
 export function resolveVercelToken(): string | undefined {
   return process.env.VERCEL_TOKEN || readCliToken() || undefined;
 }
-
-/**
- * True if the token came from the CLI auth file rather than VERCEL_TOKEN.
- * Used to include a hint in error messages.
- */
-export function vercelTokenSource(): "env" | "cli" | "none" {
-  if (process.env.VERCEL_TOKEN) return "env";
-  if (readCliToken()) return "cli";
-  return "none";
-}

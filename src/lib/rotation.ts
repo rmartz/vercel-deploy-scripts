@@ -35,13 +35,13 @@ export interface RotationOptions {
 
 // ─── Prerequisites ────────────────────────────────────────────────────────────
 
-function checkPrereqs(needsGcloud: boolean): void {
+function checkPrereqs(needsGcloud: boolean, token: string | undefined): void {
   const missing: string[] = [];
   if (!commandExists("vercel")) missing.push("vercel");
   if (needsGcloud && !commandExists("gcloud")) missing.push("gcloud");
   if (missing.length > 0) err(`Missing required tools: ${missing.join(" ")}`);
 
-  if (!resolveVercelToken())
+  if (!token)
     err(
       "No Vercel token found. Set VERCEL_TOKEN or run 'vercel login' to authenticate.",
     );
@@ -60,18 +60,15 @@ export async function run(opts: RotationOptions): Promise<void> {
   // When opts.init is undefined we don't yet know hasFirebase, so we conservatively
   // require gcloud unless we know this is a Sentry-only init.
   const needsGcloud = opts.init !== "sentry";
-  checkPrereqs(needsGcloud);
+  const token = resolveVercelToken();
+  checkPrereqs(needsGcloud, token);
 
   const project = detectProject();
   log(
     `Project: ${project.projectId}${project.teamId ? ` (team: ${project.teamId})` : ""}`,
   );
 
-  const client = new VercelClient(
-    resolveVercelToken()!,
-    project.projectId,
-    project.teamId,
-  );
+  const client = new VercelClient(token!, project.projectId, project.teamId);
 
   const allEnvs = await client.listEnvVars();
   const envKeys = allEnvs.envs.map((e) => e.key);

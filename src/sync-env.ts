@@ -203,8 +203,8 @@ function validateInitConfig(opts: Options, envList: string[]): void {
     );
 }
 
-function checkPrereqs(opts: Options): void {
-  if (!resolveVercelToken())
+function checkPrereqs(opts: Options, token: string | undefined): void {
+  if (!token)
     err(
       "No Vercel token found. Set VERCEL_TOKEN or run 'vercel login' to authenticate.",
     );
@@ -215,7 +215,8 @@ function checkPrereqs(opts: Options): void {
 }
 
 export async function run(opts: Options): Promise<void> {
-  checkPrereqs(opts);
+  const token = resolveVercelToken();
+  checkPrereqs(opts, token);
 
   const project = detectProject();
   log(
@@ -272,11 +273,7 @@ export async function run(opts: Options): Promise<void> {
     return;
   }
 
-  const client = new VercelClient(
-    resolveVercelToken()!,
-    project.projectId,
-    project.teamId,
-  );
+  const client = new VercelClient(token!, project.projectId, project.teamId);
 
   let allEnvs = await client.listEnvVars();
   let totalCreated = 0;
