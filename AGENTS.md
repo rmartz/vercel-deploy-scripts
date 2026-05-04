@@ -29,8 +29,8 @@ pnpm run test:ts   # Run Vitest unit tests
 
 ## File Organization
 
-- **Source files**: Keep under ~200 lines (split at ~240). Large files should be split by logical concern.
-- **Test files**: Keep under ~300 lines (split at ~360). Place in `src/__tests__/` using `.test.ts` extension. When splitting, organize into a `{module}-tests/` subdirectory.
+- **Source files**: Target under ~200 lines; consider splitting by logical concern around ~300 lines. Existing large files (`rotate-keys.ts`) are known exceptions until refactored.
+- **Test files**: Target under ~300 lines. Place in `src/__tests__/` using `.test.ts` extension. When splitting, organize into a `{module}-tests/` subdirectory.
 - Use named exports. Default exports are not used in this project.
 
 ## Testing Conventions
@@ -48,7 +48,7 @@ pnpm run test:ts   # Run Vitest unit tests
 ## Git Conventions
 
 - Branch names: lowercase with hyphens, prefixed by type: `feat/`, `fix/`, `chore/`, `refactor/`, `docs/`, `ci/` (e.g., `feat/yaml-driven-init-config`).
-- Commit messages: imperative verbs (Add, Implement, Fix, Update, Extract, Remove). No `feat:`/`fix:` prefixes within a feature branch.
+- Commit messages: imperative verbs (Add, Implement, Fix, Update, Extract, Remove). No `feat:`/`fix:` prefixes within a feature branch — this repo uses squash merges, so only the PR title (which must follow Conventional Commits) enters main's history and drives semantic-release versioning.
 - PR titles must follow Conventional Commits format: `<type>: description` or `<type>(<scope>): description`. Valid types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `style`, `perf`, `ci`, `build`, `revert`. A `!` suffix is allowed before the colon to denote breaking changes (e.g., `feat!: remove legacy auth`). This is enforced by CI.
 - PR descriptions must use `Closes #123`, `Fixes #123`, or `Resolves #123` to trigger GitHub's automatic issue close on merge. Phrases like "Addresses #123" or "Related to #123" do NOT trigger auto-close.
 - PR descriptions must be descriptive prose, not a task checklist. A good description covers: (1) what the PR does and why, (2) key technical decisions or non-obvious implementation choices.
