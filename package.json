@@ -15,12 +15,14 @@
     ".gitleaks.toml",
     "templates/"
   ],
+  "packageManager": "pnpm@10.30.3",
   "engines": {
-    "node": ">=18"
+    "node": ">=18",
+    "pnpm": ">=9"
   },
   "scripts": {
     "build": "tsc && chmod +x dist/sync-env.js",
-    "prepare": "npm run build",
+    "prepare": "pnpm run build",
     "test": "bats tests/bats/",
     "test:ts": "vitest run"
   },
