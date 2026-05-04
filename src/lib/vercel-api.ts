@@ -1,3 +1,5 @@
+import { FatalError } from "./logger";
+
 export interface VercelEnvVar {
   id: string;
   key: string;
@@ -48,7 +50,7 @@ export class VercelClient {
     });
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(
+      throw new FatalError(
         `Vercel API ${method} ${path} failed (${res.status}): ${text}`,
       );
     }
