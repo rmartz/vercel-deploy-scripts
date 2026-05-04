@@ -18,7 +18,7 @@ interface Options {
   dryRun: boolean;
   rotateKeys: boolean;
   invalidateKeys: boolean;
-  init: "all" | "firebase" | "sentry" | null;
+  init?: "all" | "firebase" | "sentry";
 }
 
 const USAGE = `Usage: sync-env [OPTIONS]
@@ -102,7 +102,7 @@ export function parseArgs(argv: string[]): Options {
     dryRun: false,
     rotateKeys: false,
     invalidateKeys: true,
-    init: null,
+    init: undefined,
   };
   const args = argv.slice(2);
 

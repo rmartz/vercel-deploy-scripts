@@ -27,7 +27,7 @@ describe("run — prerequisite checks", () => {
 
     const { run } = await import("../../rotate-keys");
     await expect(
-      run({ targetEnv: "all", invalidateKeys: true, init: null }),
+      run({ targetEnv: "all", invalidateKeys: true }),
     ).rejects.toThrow(FatalError);
   });
 
@@ -39,7 +39,7 @@ describe("run — prerequisite checks", () => {
 
     const { run } = await import("../../rotate-keys");
     await expect(
-      run({ targetEnv: "all", invalidateKeys: true, init: null }),
+      run({ targetEnv: "all", invalidateKeys: true }),
     ).rejects.toThrow(FatalError);
   });
 
@@ -51,7 +51,7 @@ describe("run — prerequisite checks", () => {
 
     const { run } = await import("../../rotate-keys");
     await expect(
-      run({ targetEnv: "all", invalidateKeys: true, init: null }),
+      run({ targetEnv: "all", invalidateKeys: true }),
     ).rejects.toThrow(FatalError);
   });
 
@@ -67,10 +67,10 @@ describe("run — prerequisite checks", () => {
 
     const { run } = await import("../../rotate-keys");
     await expect(
-      run({ targetEnv: "all", invalidateKeys: true, init: null }),
+      run({ targetEnv: "all", invalidateKeys: true }),
     ).rejects.toThrow(FatalError);
     await expect(
-      run({ targetEnv: "all", invalidateKeys: true, init: null }),
+      run({ targetEnv: "all", invalidateKeys: true }),
     ).rejects.toThrow("authenticated");
   });
 
@@ -82,7 +82,7 @@ describe("run — prerequisite checks", () => {
 
     const { run } = await import("../../rotate-keys");
     await expect(
-      run({ targetEnv: "all", invalidateKeys: true, init: null }),
+      run({ targetEnv: "all", invalidateKeys: true }),
     ).rejects.toThrow(FatalError);
   });
 
@@ -101,13 +101,13 @@ describe("run — prerequisite checks", () => {
 
     const { run } = await import("../../rotate-keys");
     await expect(
-      run({ targetEnv: "all", invalidateKeys: true, init: null }),
+      run({ targetEnv: "all", invalidateKeys: true }),
     ).rejects.toThrow(FatalError);
     await expect(
-      run({ targetEnv: "all", invalidateKeys: true, init: null }),
+      run({ targetEnv: "all", invalidateKeys: true }),
     ).rejects.toThrow("No Firebase or Sentry");
     await expect(
-      run({ targetEnv: "all", invalidateKeys: true, init: null }),
+      run({ targetEnv: "all", invalidateKeys: true }),
     ).rejects.toThrow("--init");
   });
 });

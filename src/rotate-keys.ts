@@ -11,7 +11,7 @@ import { VercelClient, VercelEnvVar } from "./lib/vercel-api";
 interface Options {
   targetEnv: string;
   invalidateKeys: boolean;
-  init: "all" | "firebase" | "sentry" | null;
+  init?: "all" | "firebase" | "sentry";
 }
 
 const USAGE = `Usage: rotate-keys [OPTIONS]
@@ -67,7 +67,7 @@ ADDITIONAL VARIABLES (required with --init firebase):
                         created (e.g. my-sa@my-project.iam.gserviceaccount.com)`;
 
 export function parseArgs(argv: string[]): Options {
-  const opts: Options = { targetEnv: "all", invalidateKeys: true, init: null };
+  const opts: Options = { targetEnv: "all", invalidateKeys: true };
   const args = argv.slice(2);
 
   for (let i = 0; i < args.length; i++) {
@@ -254,13 +254,13 @@ async function getFirebaseSaForEnv(
   envs: VercelEnvVar[],
   pattern: "json" | "split",
   client: VercelClient,
-): Promise<FirebaseSaInfo | null> {
+): Promise<FirebaseSaInfo | undefined> {
   if (pattern === "json") {
     const record = envs.find(
       (e) =>
         e.key === "FIREBASE_SERVICE_ACCOUNT" && e.target.includes(vercelEnv),
     );
-    if (!record) return null;
+    if (!record) return undefined;
     const saJson = JSON.parse(await client.getEnvVarValue(record.id)) as {
       client_email: string;
       project_id: string;
@@ -271,7 +271,7 @@ async function getFirebaseSaForEnv(
   const ceRecord = envs.find(
     (e) => e.key === "FIREBASE_CLIENT_EMAIL" && e.target.includes(vercelEnv),
   );
-  if (!ceRecord) return null;
+  if (!ceRecord) return undefined;
   const email = await client.getEnvVarValue(ceRecord.id);
 
   let gcpProject = "";
@@ -764,7 +764,7 @@ async function initSentry(opts: Options, client: VercelClient): Promise<void> {
 
 export async function run(opts: Options): Promise<void> {
   // gcloud is only needed for Firebase-related flows.
-  // When opts.init === null we don't yet know hasFirebase, so we conservatively
+  // When opts.init is undefined we don't yet know hasFirebase, so we conservatively
   // require gcloud unless we know this is a Sentry-only init.
   const needsGcloud = opts.init !== "sentry";
   checkPrereqs(needsGcloud);
@@ -824,7 +824,7 @@ export async function run(opts: Options): Promise<void> {
       log("Key initialization complete.");
     } else {
       let oldFirebaseKeys: OldFirebaseKey[] = [];
-      let fp: FirebasePattern | null = null;
+      let fp: FirebasePattern | undefined;
       let oldSentryKeyId = "";
 
       if (hasFirebase) {

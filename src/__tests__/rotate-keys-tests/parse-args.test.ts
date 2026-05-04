@@ -11,7 +11,7 @@ describe("parseArgs", () => {
     expect(opts).toEqual({
       targetEnv: "all",
       invalidateKeys: true,
-      init: null,
+      init: undefined,
     });
   });
 
