@@ -9,7 +9,7 @@ import {
 } from "./lib/environments";
 import { FatalError, err, log, warn } from "./lib/logger";
 import { detectProject } from "./lib/project";
-import { run as rotateKeysRun } from "./rotate-keys";
+import { run as rotateKeysRun } from "./lib/rotation";
 import { VercelClient } from "./lib/vercel-api";
 
 interface Options {
