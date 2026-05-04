@@ -26,7 +26,7 @@ export function parseDeploymentEnv(
     string,
     unknown
   > | null;
-  if (!data) return {};
+  if (!data || typeof data !== "object" || Array.isArray(data)) return {};
 
   // Support nested `variables:` format ({ environment: "staging", variables: { KEY: val } })
   // as well as flat format ({ KEY: val }).

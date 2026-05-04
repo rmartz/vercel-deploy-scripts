@@ -86,4 +86,14 @@ describe("parseDeploymentEnv", () => {
     writeYaml("staging", "");
     expect(parseDeploymentEnv(deployDir, "staging")).toEqual({});
   });
+
+  it("returns empty object when YAML root is a scalar", () => {
+    writeYaml("staging", "just a string\n");
+    expect(parseDeploymentEnv(deployDir, "staging")).toEqual({});
+  });
+
+  it("returns empty object when YAML root is an array", () => {
+    writeYaml("staging", "- item1\n- item2\n");
+    expect(parseDeploymentEnv(deployDir, "staging")).toEqual({});
+  });
 });
