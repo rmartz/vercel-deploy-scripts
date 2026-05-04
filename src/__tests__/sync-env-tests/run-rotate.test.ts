@@ -353,7 +353,11 @@ describe("run", () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     const deployDir = makeDeploymentDir(tmpDir, ["production"], {
-      production: { MY_KEY: "val" },
+      production: {
+        MY_KEY: "val",
+        SENTRY_ORG: "my-org",
+        SENTRY_PROJECT: "my-proj",
+      },
     });
     await run({
       targetEnv: "all",
@@ -371,5 +375,68 @@ describe("run", () => {
     expect(logMessages.some((m) => m.includes("Would rotate keys"))).toBe(
       false,
     );
+  });
+
+  it("reports all missing firebase vars across all envs before any API call", async () => {
+    delete process.env.FIREBASE_SA_EMAIL;
+    delete process.env.GCLOUD_PROJECT;
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const deployDir = makeDeploymentDir(tmpDir, ["production", "staging"], {
+      production: { MY_KEY: "val", FIREBASE_PROJECT_ID: "proj-prod" },
+      staging: { MY_KEY: "val" },
+    });
+
+    await expect(
+      run({
+        targetEnv: "all",
+        deploymentDir: deployDir,
+        dryRun: false,
+        rotateKeys: true,
+        invalidateKeys: true,
+        init: "firebase",
+      }),
+    ).rejects.toThrow(
+      /FIREBASE_SA_EMAIL \[production\].*FIREBASE_SA_EMAIL \[staging\].*FIREBASE_PROJECT_ID \[staging\]/s,
+    );
+  });
+
+  it("accepts shell env as fallback for missing YAML firebase vars", async () => {
+    process.env.FIREBASE_SA_EMAIL = "sa@fallback.iam.gserviceaccount.com";
+    process.env.GCLOUD_PROJECT = "fallback-project";
+    const rotateKeys = await import("../../lib/rotation");
+    vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
+
+    const { VercelClient } = await import("../../lib/vercel-api");
+    vi.spyOn(VercelClient.prototype, "listEnvVars").mockResolvedValue({
+      envs: [],
+      pagination: undefined,
+    });
+    vi.spyOn(VercelClient.prototype, "findEnvVar").mockReturnValue(undefined);
+    vi.spyOn(VercelClient.prototype, "createEnvVar").mockResolvedValue({
+      id: "x",
+      key: "k",
+      value: "v",
+      target: [],
+      type: "plain",
+    });
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const deployDir = makeDeploymentDir(tmpDir, ["production"], {
+      production: { MY_KEY: "val" },
+    });
+
+    // Should not throw — shell env vars satisfy the validation
+    await expect(
+      run({
+        targetEnv: "all",
+        deploymentDir: deployDir,
+        dryRun: false,
+        rotateKeys: true,
+        invalidateKeys: true,
+        init: "firebase",
+      }),
+    ).resolves.toBeUndefined();
   });
 });

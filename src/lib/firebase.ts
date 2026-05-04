@@ -288,9 +288,15 @@ export async function initFirebase(
   log("Initializing Firebase service account keys...");
 
   const saEmail = saEmailOverride ?? process.env.FIREBASE_SA_EMAIL;
-  if (!saEmail) err("FIREBASE_SA_EMAIL is required for --init firebase");
+  if (!saEmail)
+    err(
+      `FIREBASE_SA_EMAIL is required for --init firebase (target: ${targetEnv}). Set FIREBASE_SA_EMAIL in your deployment YAML or shell environment.`,
+    );
   const gcpProject = gcpProjectOverride ?? process.env.GCLOUD_PROJECT;
-  if (!gcpProject) err("GCLOUD_PROJECT is required for --init firebase");
+  if (!gcpProject)
+    err(
+      `GCLOUD_PROJECT is required for --init firebase (target: ${targetEnv}). Set FIREBASE_PROJECT_ID in your deployment YAML or GCLOUD_PROJECT in your shell environment.`,
+    );
 
   const currentEnvs = await client.listEnvVars();
   for (const vercelEnv of targetEnvs(targetEnv)) {

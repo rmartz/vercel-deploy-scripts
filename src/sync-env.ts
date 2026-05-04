@@ -150,6 +150,56 @@ export function parseArgs(argv: string[]): Options {
   return opts;
 }
 
+function validateInitConfig(opts: Options, envList: string[]): void {
+  const needsFirebase = opts.init === "firebase" || opts.init === "all";
+  const needsSentry = opts.init === "sentry" || opts.init === "all";
+
+  const missing: string[] = [];
+
+  if (needsFirebase) {
+    const targets =
+      opts.targetEnv === "all"
+        ? envList.filter((e) => e !== "development")
+        : [opts.targetEnv];
+
+    for (const envName of targets) {
+      const envVars = parseDeploymentEnv(opts.deploymentDir, envName);
+      if (!envVars.FIREBASE_SA_EMAIL && !process.env.FIREBASE_SA_EMAIL)
+        missing.push(
+          `FIREBASE_SA_EMAIL [${envName}]: add to deployment/${envName}.yml or export in shell`,
+        );
+      if (!envVars.FIREBASE_PROJECT_ID && !process.env.GCLOUD_PROJECT)
+        missing.push(
+          `FIREBASE_PROJECT_ID [${envName}]: add to deployment/${envName}.yml or export GCLOUD_PROJECT in shell`,
+        );
+    }
+  }
+
+  if (needsSentry) {
+    const sourceEnv =
+      opts.targetEnv === "all"
+        ? envList.find((e) => e !== "development")
+        : opts.targetEnv;
+    const envVars = sourceEnv
+      ? parseDeploymentEnv(opts.deploymentDir, sourceEnv)
+      : {};
+
+    if (!envVars.SENTRY_ORG && !process.env.SENTRY_ORG)
+      missing.push(
+        `SENTRY_ORG [${sourceEnv ?? envList[0]}]: add to deployment YAML or export in shell`,
+      );
+    if (!envVars.SENTRY_PROJECT && !process.env.SENTRY_PROJECT)
+      missing.push(
+        `SENTRY_PROJECT [${sourceEnv ?? envList[0]}]: add to deployment YAML or export in shell`,
+      );
+  }
+
+  if (missing.length > 0)
+    err(
+      `--init ${opts.init}: missing required configuration:\n${missing.map((m) => `  · ${m}`).join("\n")}`,
+    );
+}
+
 function checkPrereqs(opts: Options): void {
   if (!process.env.VERCEL_TOKEN)
     err("VERCEL_TOKEN environment variable is required");
@@ -184,6 +234,8 @@ export async function run(opts: Options): Promise<void> {
     }
     envList = [opts.targetEnv];
   }
+
+  if (opts.init) validateInitConfig(opts, envList);
 
   if (opts.dryRun) {
     log("Dry run — no changes will be made");
