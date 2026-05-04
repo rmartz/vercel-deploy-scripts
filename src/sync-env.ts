@@ -279,21 +279,36 @@ export async function run(opts: Options): Promise<void> {
 
   if (opts.rotateKeys) {
     if (opts.init && opts.targetEnv === "all") {
-      // --init with all envs: each deployment env has its own Firebase project
-      // and SA email, so rotate once per env with that env's YAML values.
-      // Development is skipped (no remote deployment target).
-      for (const envName of envList) {
-        if (envName === "development") continue;
-        const envVars = parseDeploymentEnv(opts.deploymentDir, envName);
+      const nonDevEnvs = envList.filter((e) => e !== "development");
+      // Sentry is project-level (one org/project): init once across all Vercel
+      // targets so only one key is created and stored in every environment.
+      if (
+        (opts.init === "sentry" || opts.init === "all") &&
+        nonDevEnvs.length > 0
+      ) {
+        const firstEnv = nonDevEnvs[0];
+        const envVars = parseDeploymentEnv(opts.deploymentDir, firstEnv);
         await rotateKeysRun({
-          targetEnv: vercelTarget(envName),
+          targetEnv: "all",
           invalidateKeys: opts.invalidateKeys,
-          init: opts.init,
-          firebaseSaEmail: envVars.FIREBASE_SA_EMAIL || undefined,
-          gcpProject: envVars.FIREBASE_PROJECT_ID || undefined,
+          init: "sentry",
           sentryOrg: envVars.SENTRY_ORG || undefined,
           sentryProject: envVars.SENTRY_PROJECT || undefined,
         });
+      }
+      // Firebase is per-project: each deployment env has its own Firebase project
+      // and SA email, so init once per env with that env's YAML values.
+      if (opts.init === "firebase" || opts.init === "all") {
+        for (const envName of nonDevEnvs) {
+          const envVars = parseDeploymentEnv(opts.deploymentDir, envName);
+          await rotateKeysRun({
+            targetEnv: vercelTarget(envName),
+            invalidateKeys: opts.invalidateKeys,
+            init: "firebase",
+            firebaseSaEmail: envVars.FIREBASE_SA_EMAIL || undefined,
+            gcpProject: envVars.FIREBASE_PROJECT_ID || undefined,
+          });
+        }
       }
     } else {
       // Single-env or rotation-only: one call. For --env all, read YAML values
