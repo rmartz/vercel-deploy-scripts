@@ -17,6 +17,7 @@ describe("parseArgs", () => {
       dryRun: false,
       rotateKeys: false,
       invalidateKeys: true,
+      init: null,
     });
   });
 
@@ -54,6 +55,36 @@ describe("parseArgs", () => {
     const opts = parseArgs(["node", "sync-env"]);
     expect(opts.rotateKeys).toBe(false);
     expect(opts.invalidateKeys).toBe(true);
+  });
+
+  it("--init alone sets init to all and implies rotateKeys", () => {
+    const opts = parseArgs(["node", "sync-env", "--init"]);
+    expect(opts.init).toBe("all");
+    expect(opts.rotateKeys).toBe(true);
+  });
+
+  it("--init firebase sets init to firebase and implies rotateKeys", () => {
+    const opts = parseArgs(["node", "sync-env", "--init", "firebase"]);
+    expect(opts.init).toBe("firebase");
+    expect(opts.rotateKeys).toBe(true);
+  });
+
+  it("--init sentry sets init to sentry and implies rotateKeys", () => {
+    const opts = parseArgs(["node", "sync-env", "--init", "sentry"]);
+    expect(opts.init).toBe("sentry");
+    expect(opts.rotateKeys).toBe(true);
+  });
+
+  it("--init followed by a non-service arg treats arg as next flag", () => {
+    const opts = parseArgs([
+      "node",
+      "sync-env",
+      "--init",
+      "--env",
+      "production",
+    ]);
+    expect(opts.init).toBe("all");
+    expect(opts.targetEnv).toBe("production");
   });
 
   it("throws FatalError on unknown flag", () => {
@@ -316,6 +347,7 @@ describe("run", () => {
       dryRun: false,
       rotateKeys: false,
       invalidateKeys: true,
+      init: null,
     });
 
     expect(mockUpdate).toHaveBeenCalledWith("env_existing", "new_value");
@@ -350,11 +382,13 @@ describe("run", () => {
       dryRun: false,
       rotateKeys: true,
       invalidateKeys: true,
+      init: null,
     });
 
     expect(mockRotate).toHaveBeenCalledWith({
       targetEnv: "all",
       invalidateKeys: true,
+      init: null,
     });
   });
 
@@ -387,11 +421,13 @@ describe("run", () => {
       dryRun: false,
       rotateKeys: true,
       invalidateKeys: false,
+      init: null,
     });
 
     expect(mockRotate).toHaveBeenCalledWith({
       targetEnv: "preview",
       invalidateKeys: false,
+      init: null,
     });
   });
 
@@ -410,6 +446,7 @@ describe("run", () => {
       dryRun: true,
       rotateKeys: true,
       invalidateKeys: true,
+      init: null,
     });
 
     expect(mockRotate).not.toHaveBeenCalled();
@@ -442,6 +479,7 @@ describe("run", () => {
       dryRun: false,
       rotateKeys: true,
       invalidateKeys: true,
+      init: null,
     });
 
     expect(mockCreateEnvVar).not.toHaveBeenCalled();
@@ -454,15 +492,13 @@ describe("run", () => {
       pagination: undefined,
     });
     vi.spyOn(VercelClient.prototype, "findEnvVar").mockReturnValue(undefined);
-    const mockCreateEnvVar = vi
-      .fn()
-      .mockResolvedValue({
-        id: "x",
-        key: "k",
-        value: "v",
-        target: [],
-        type: "plain",
-      });
+    const mockCreateEnvVar = vi.fn().mockResolvedValue({
+      id: "x",
+      key: "k",
+      value: "v",
+      target: [],
+      type: "plain",
+    });
     vi.spyOn(VercelClient.prototype, "createEnvVar").mockImplementation(
       mockCreateEnvVar,
     );
@@ -478,6 +514,7 @@ describe("run", () => {
       dryRun: false,
       rotateKeys: false,
       invalidateKeys: true,
+      init: null,
     });
 
     expect(mockCreateEnvVar).toHaveBeenCalledWith(
@@ -504,6 +541,7 @@ describe("run", () => {
       dryRun: true,
       rotateKeys: true,
       invalidateKeys: true,
+      init: null,
     });
 
     expect(
