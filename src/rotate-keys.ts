@@ -12,6 +12,14 @@ interface Options {
   targetEnv: string;
   invalidateKeys: boolean;
   init?: "all" | "firebase" | "sentry";
+  /** SA email for --init firebase. Falls back to FIREBASE_SA_EMAIL env var. */
+  firebaseSaEmail?: string;
+  /** GCP project ID for --init firebase. Falls back to GCLOUD_PROJECT env var. */
+  gcpProject?: string;
+  /** Sentry org slug. Falls back to SENTRY_ORG env var. */
+  sentryOrg?: string;
+  /** Sentry project slug. Falls back to SENTRY_PROJECT env var. */
+  sentryProject?: string;
 }
 
 const USAGE = `Usage: rotate-keys [OPTIONS]
@@ -61,10 +69,14 @@ OPTIONAL ENVIRONMENT VARIABLES:
                         from service account JSON during normal rotation)
 
 ADDITIONAL VARIABLES (required with --init firebase):
-  GCLOUD_PROJECT        GCP project ID (required for --init firebase; auto-detected
-                        from service account JSON during normal rotation)
+  GCLOUD_PROJECT        GCP project ID — read from FIREBASE_PROJECT_ID in deployment
+                        YAML when invoked via sync-env; falls back to GCLOUD_PROJECT
+                        shell env var; auto-detected from service account JSON during
+                        normal rotation
   FIREBASE_SA_EMAIL     Service account email for which the initial GCP key will be
-                        created (e.g. my-sa@my-project.iam.gserviceaccount.com)`;
+                        created — read from deployment YAML when invoked via sync-env;
+                        falls back to FIREBASE_SA_EMAIL shell env var
+                        (e.g. my-sa@my-project.iam.gserviceaccount.com)`;
 
 export function parseArgs(argv: string[]): Options {
   const opts: Options = { targetEnv: "all", invalidateKeys: true };
@@ -474,13 +486,10 @@ async function rotateSentry(
 
   if (!process.env.SENTRY_AUTH_TOKEN)
     err("SENTRY_AUTH_TOKEN is required for Sentry rotation");
-  if (!process.env.SENTRY_ORG)
-    err("SENTRY_ORG is required for Sentry rotation");
-  if (!process.env.SENTRY_PROJECT)
-    err("SENTRY_PROJECT is required for Sentry rotation");
-
-  const org = process.env.SENTRY_ORG;
-  const project = process.env.SENTRY_PROJECT;
+  const org = opts.sentryOrg ?? process.env.SENTRY_ORG;
+  if (!org) err("SENTRY_ORG is required for Sentry rotation");
+  const project = opts.sentryProject ?? process.env.SENTRY_PROJECT;
+  if (!project) err("SENTRY_PROJECT is required for Sentry rotation");
 
   const allEnvs = await client.listEnvVars();
   let dsnKeyName = "";
@@ -699,9 +708,9 @@ async function initFirebase(
 ): Promise<void> {
   log("Initializing Firebase service account keys...");
 
-  const saEmail = process.env.FIREBASE_SA_EMAIL;
+  const saEmail = opts.firebaseSaEmail ?? process.env.FIREBASE_SA_EMAIL;
   if (!saEmail) err("FIREBASE_SA_EMAIL is required for --init firebase");
-  const gcpProject = process.env.GCLOUD_PROJECT;
+  const gcpProject = opts.gcpProject ?? process.env.GCLOUD_PROJECT;
   if (!gcpProject) err("GCLOUD_PROJECT is required for --init firebase");
 
   const currentEnvs = await client.listEnvVars();
@@ -731,12 +740,10 @@ async function initSentry(opts: Options, client: VercelClient): Promise<void> {
 
   if (!process.env.SENTRY_AUTH_TOKEN)
     err("SENTRY_AUTH_TOKEN is required for --init sentry");
-  if (!process.env.SENTRY_ORG) err("SENTRY_ORG is required for --init sentry");
-  if (!process.env.SENTRY_PROJECT)
-    err("SENTRY_PROJECT is required for --init sentry");
-
-  const org = process.env.SENTRY_ORG;
-  const project = process.env.SENTRY_PROJECT;
+  const org = opts.sentryOrg ?? process.env.SENTRY_ORG;
+  if (!org) err("SENTRY_ORG is required for --init sentry");
+  const project = opts.sentryProject ?? process.env.SENTRY_PROJECT;
+  if (!project) err("SENTRY_PROJECT is required for --init sentry");
   const dsnKeyName = "NEXT_PUBLIC_SENTRY_DSN";
 
   log("  Creating new Sentry project key...");
@@ -846,8 +853,8 @@ export async function run(opts: Options): Promise<void> {
         if (hasSentry && oldSentryKeyId) {
           await invalidateSentryKey(
             oldSentryKeyId,
-            process.env.SENTRY_ORG!,
-            process.env.SENTRY_PROJECT!,
+            (opts.sentryOrg ?? process.env.SENTRY_ORG)!,
+            (opts.sentryProject ?? process.env.SENTRY_PROJECT)!,
           );
         }
       } else {
