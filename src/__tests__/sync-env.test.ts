@@ -355,6 +355,7 @@ describe("run", () => {
     expect(mockRotate).toHaveBeenCalledWith({
       targetEnv: "all",
       invalidateKeys: true,
+      init: null,
     });
   });
 
@@ -392,6 +393,7 @@ describe("run", () => {
     expect(mockRotate).toHaveBeenCalledWith({
       targetEnv: "preview",
       invalidateKeys: false,
+      init: null,
     });
   });
 
@@ -454,15 +456,13 @@ describe("run", () => {
       pagination: undefined,
     });
     vi.spyOn(VercelClient.prototype, "findEnvVar").mockReturnValue(undefined);
-    const mockCreateEnvVar = vi
-      .fn()
-      .mockResolvedValue({
-        id: "x",
-        key: "k",
-        value: "v",
-        target: [],
-        type: "plain",
-      });
+    const mockCreateEnvVar = vi.fn().mockResolvedValue({
+      id: "x",
+      key: "k",
+      value: "v",
+      target: [],
+      type: "plain",
+    });
     vi.spyOn(VercelClient.prototype, "createEnvVar").mockImplementation(
       mockCreateEnvVar,
     );
