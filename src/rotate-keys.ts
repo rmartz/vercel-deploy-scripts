@@ -11,6 +11,7 @@ import { VercelClient, VercelEnvVar } from "./lib/vercel-api";
 interface Options {
   targetEnv: string;
   invalidateKeys: boolean;
+  init: "all" | "firebase" | "sentry" | null;
 }
 
 const USAGE = `Usage: rotate-keys [OPTIONS]
@@ -29,16 +30,22 @@ Providers are auto-detected from existing Vercel env var names:
   Firebase  FIREBASE_SERVICE_ACCOUNT or FIREBASE_PRIVATE_KEY
   Sentry    SENTRY_DSN or NEXT_PUBLIC_SENTRY_DSN
 
+Use --init to push secrets into a fresh Vercel project that has none yet.
+--init fails if the target secrets already exist (use the normal rotation flow
+to update existing keys).
+
 OPTIONS:
-  --env <env>           Which Vercel environment to rotate. One of:
-                          production   Vercel production environment
-                          preview      Vercel preview environment (alias: staging)
-                          development  Vercel development environment
-                          all          All environments that already have the key
-                                       configured; unconfigured environments are
-                                       skipped (use --env <env> to explicitly add)
-  --no-invalidate       Skip deleting old keys after redeployment
-  -h, --help            Show this help
+  --env <env>                Which Vercel environment to target. One of:
+                               production   Vercel production environment
+                               preview      Vercel preview environment (alias: staging)
+                               development  Vercel development environment
+                               all          All environments (rotation: only envs that
+                                            already have the key; init: all three)
+  --init [firebase|sentry]   Bootstrap secrets into a project that has none yet.
+                               Omit the service name to init both Firebase and Sentry.
+                               Fails if the specified secrets already exist.
+  --no-invalidate            Skip deleting old keys after redeployment
+  -h, --help                 Show this help
 
 REQUIRED ENVIRONMENT VARIABLES:
   VERCEL_TOKEN          Vercel API token with project read/write access
@@ -50,10 +57,13 @@ OPTIONAL ENVIRONMENT VARIABLES:
   SENTRY_ORG            Sentry organization slug (required with Sentry rotation)
   SENTRY_PROJECT        Sentry project slug (required with Sentry rotation)
   SENTRY_URL            Sentry base URL (default: https://sentry.io)
-  GCLOUD_PROJECT        GCP project ID (auto-detected from service account JSON)`;
+  GCLOUD_PROJECT        GCP project ID (auto-detected from service account JSON)
+
+ADDITIONAL VARIABLES (required with --init firebase):
+  FIREBASE_SA_EMAIL     Service account email to create the initial GCP key for`;
 
 export function parseArgs(argv: string[]): Options {
-  const opts: Options = { targetEnv: "all", invalidateKeys: true };
+  const opts: Options = { targetEnv: "all", invalidateKeys: true, init: null };
   const args = argv.slice(2);
 
   for (let i = 0; i < args.length; i++) {
@@ -65,6 +75,14 @@ export function parseArgs(argv: string[]): Options {
       if (!valid.includes(val))
         err(`--env must be one of: ${valid.join(", ")}`);
       opts.targetEnv = val === "staging" ? "preview" : val;
+    } else if (arg === "--init") {
+      const next = args[i + 1];
+      if (next === "firebase" || next === "sentry") {
+        opts.init = next;
+        i++;
+      } else {
+        opts.init = "all";
+      }
     } else if (arg === "--no-invalidate") {
       opts.invalidateKeys = false;
     } else if (arg === "-h" || arg === "--help") {
@@ -675,6 +693,79 @@ async function invalidateSentryKey(
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
+// ─── Init (bootstrap secrets into a project that has none yet) ───────────────
+
+async function initFirebase(
+  opts: Options,
+  client: VercelClient,
+  tempDir: string,
+): Promise<void> {
+  log("Initializing Firebase service account keys...");
+
+  const saEmail = process.env.FIREBASE_SA_EMAIL;
+  if (!saEmail) err("FIREBASE_SA_EMAIL is required for --init firebase");
+  const gcpProject = process.env.GCLOUD_PROJECT;
+  if (!gcpProject) err("GCLOUD_PROJECT is required for --init firebase");
+
+  for (const vercelEnv of targetEnvs(opts.targetEnv)) {
+    const keyFile = path.join(tempDir, `key-${vercelEnv}.json`);
+    createGcpKey(keyFile, saEmail, gcpProject);
+
+    const newSaJson = JSON.parse(fs.readFileSync(keyFile, "utf-8")) as {
+      private_key_id: string;
+      [key: string]: unknown;
+    };
+    log(`  [${vercelEnv}] Created key ID: ${newSaJson.private_key_id}`);
+
+    const currentEnvs = await client.listEnvVars();
+    await client.setEnvForTarget(
+      "FIREBASE_SERVICE_ACCOUNT",
+      JSON.stringify(newSaJson),
+      vercelEnv,
+      currentEnvs.envs,
+    );
+    log(`  [${vercelEnv}] Pushed FIREBASE_SERVICE_ACCOUNT`);
+  }
+
+  log("Firebase initialization complete.");
+}
+
+async function initSentry(opts: Options, client: VercelClient): Promise<void> {
+  log("Initializing Sentry DSN...");
+
+  if (!process.env.SENTRY_AUTH_TOKEN)
+    err("SENTRY_AUTH_TOKEN is required for --init sentry");
+  if (!process.env.SENTRY_ORG) err("SENTRY_ORG is required for --init sentry");
+  if (!process.env.SENTRY_PROJECT)
+    err("SENTRY_PROJECT is required for --init sentry");
+
+  const org = process.env.SENTRY_ORG;
+  const project = process.env.SENTRY_PROJECT;
+  const dsnKeyName = "NEXT_PUBLIC_SENTRY_DSN";
+
+  log("  Creating new Sentry project key...");
+  const label = `init-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}`;
+  const newKey = await sentryRequest<SentryKey>(
+    `/projects/${org}/${project}/keys/`,
+    "POST",
+    { name: label },
+  );
+  log(`  New Sentry key ID: ${newKey.id}`);
+
+  for (const vercelEnv of targetEnvs(opts.targetEnv)) {
+    const currentEnvs = await client.listEnvVars();
+    await client.setEnvForTarget(
+      dsnKeyName,
+      newKey.dsn.public,
+      vercelEnv,
+      currentEnvs.envs,
+    );
+    log(`  [${vercelEnv}] Pushed ${dsnKeyName}`);
+  }
+
+  log("Sentry initialization complete.");
+}
+
 export async function run(opts: Options): Promise<void> {
   checkPrereqs();
 
@@ -699,60 +790,82 @@ export async function run(opts: Options): Promise<void> {
     ["SENTRY_DSN", "NEXT_PUBLIC_SENTRY_DSN"].includes(k),
   );
 
-  if (!hasFirebase && !hasSentry) {
+  if (opts.init) {
+    if ((opts.init === "all" || opts.init === "firebase") && hasFirebase) {
+      err(
+        "Firebase keys already exist in this Vercel project — use rotate-keys to update them, not --init.",
+      );
+    }
+    if ((opts.init === "all" || opts.init === "sentry") && hasSentry) {
+      err(
+        "Sentry keys already exist in this Vercel project — use rotate-keys to update them, not --init.",
+      );
+    }
+  } else if (!hasFirebase && !hasSentry) {
     err(
-      "No Firebase or Sentry keys found in this Vercel project — nothing to rotate.",
+      "No Firebase or Sentry keys found in this Vercel project — nothing to rotate. To push secrets for the first time, use --init.",
     );
   }
 
   log(
-    `Target: ${opts.targetEnv} | Invalidate after redeployment: ${opts.invalidateKeys}`,
+    `Target: ${opts.targetEnv} | ${opts.init ? "Initializing" : `Invalidate after redeployment: ${opts.invalidateKeys}`}`,
   );
 
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "rotate-keys-"));
   try {
-    let oldFirebaseKeys: OldFirebaseKey[] = [];
-    let fp: FirebasePattern | null = null;
-    let oldSentryKeyId = "";
-
-    if (hasFirebase) {
-      ({ oldKeys: oldFirebaseKeys, fp } = await rotateFirebase(
-        opts,
-        client,
-        tempDir,
-      ));
-    }
-    if (hasSentry) {
-      oldSentryKeyId = await rotateSentry(opts, client);
-    }
-
-    await triggerAndWaitRedeployments(opts, client);
-
-    if (opts.invalidateKeys) {
-      log("Invalidating old keys...");
-      if (hasFirebase && fp) await invalidateFirebaseKeys(client, fp);
-      if (hasSentry && oldSentryKeyId) {
-        await invalidateSentryKey(
-          oldSentryKeyId,
-          process.env.SENTRY_ORG!,
-          process.env.SENTRY_PROJECT!,
-        );
+    if (opts.init) {
+      if (opts.init === "all" || opts.init === "firebase") {
+        await initFirebase(opts, client, tempDir);
       }
+      if (opts.init === "all" || opts.init === "sentry") {
+        await initSentry(opts, client);
+      }
+      await triggerAndWaitRedeployments(opts, client);
+      log("Key initialization complete.");
     } else {
-      log("Skipping key invalidation (--no-invalidate)");
-      for (const { vercelEnv, keyId, saEmail } of oldFirebaseKeys) {
-        warn(
-          `Old Firebase key to remove: ${keyId} (${vercelEnv}, account: ${saEmail})`,
-        );
-      }
-      if (oldSentryKeyId) {
-        warn(
-          `Old Sentry key to remove: ${oldSentryKeyId} (project: ${process.env.SENTRY_ORG}/${process.env.SENTRY_PROJECT})`,
-        );
-      }
-    }
+      let oldFirebaseKeys: OldFirebaseKey[] = [];
+      let fp: FirebasePattern | null = null;
+      let oldSentryKeyId = "";
 
-    log("Key rotation complete.");
+      if (hasFirebase) {
+        ({ oldKeys: oldFirebaseKeys, fp } = await rotateFirebase(
+          opts,
+          client,
+          tempDir,
+        ));
+      }
+      if (hasSentry) {
+        oldSentryKeyId = await rotateSentry(opts, client);
+      }
+
+      await triggerAndWaitRedeployments(opts, client);
+
+      if (opts.invalidateKeys) {
+        log("Invalidating old keys...");
+        if (hasFirebase && fp) await invalidateFirebaseKeys(client, fp);
+        if (hasSentry && oldSentryKeyId) {
+          await invalidateSentryKey(
+            oldSentryKeyId,
+            process.env.SENTRY_ORG!,
+            process.env.SENTRY_PROJECT!,
+          );
+        }
+      } else {
+        log("Skipping key invalidation (--no-invalidate)");
+        for (const { vercelEnv, keyId, saEmail } of oldFirebaseKeys) {
+          warn(
+            `Old Firebase key to remove: ${keyId} (${vercelEnv}, account: ${saEmail})`,
+          );
+        }
+        if (oldSentryKeyId) {
+          warn(
+            `Old Sentry key to remove: ${oldSentryKeyId} (project: ${process.env.SENTRY_ORG}/${process.env.SENTRY_PROJECT})`,
+          );
+        }
+      }
+
+      log("Key rotation complete.");
+    }
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
