@@ -40,7 +40,7 @@ describe("run", () => {
       mockCreateEnvVar,
     );
 
-    const rotateKeys = await import("../../rotate-keys");
+    const rotateKeys = await import("../../lib/rotation");
     vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     vi.spyOn(console, "error").mockImplementation(() => undefined);

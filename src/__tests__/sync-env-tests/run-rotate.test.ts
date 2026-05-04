@@ -28,7 +28,7 @@ describe("run", () => {
   });
 
   it("calls rotate-keys run after syncing when rotateKeys is true", async () => {
-    const rotateKeys = await import("../../rotate-keys");
+    const rotateKeys = await import("../../lib/rotation");
     const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
 
     const { VercelClient } = await import("../../lib/vercel-api");
@@ -65,7 +65,7 @@ describe("run", () => {
   });
 
   it("maps staging targetEnv to preview when calling rotate-keys", async () => {
-    const rotateKeys = await import("../../rotate-keys");
+    const rotateKeys = await import("../../lib/rotation");
     const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
 
     const { VercelClient } = await import("../../lib/vercel-api");
@@ -102,7 +102,7 @@ describe("run", () => {
   });
 
   it("skips key rotation during dry run", async () => {
-    const rotateKeys = await import("../../rotate-keys");
+    const rotateKeys = await import("../../lib/rotation");
     const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -122,7 +122,7 @@ describe("run", () => {
   });
 
   it("forwards non-null init value to rotate-keys run for a specific env", async () => {
-    const rotateKeys = await import("../../rotate-keys");
+    const rotateKeys = await import("../../lib/rotation");
     const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
 
     const { VercelClient } = await import("../../lib/vercel-api");
@@ -167,7 +167,7 @@ describe("run", () => {
   });
 
   it("--init --env all iterates once per deployment env with per-env YAML values", async () => {
-    const rotateKeys = await import("../../rotate-keys");
+    const rotateKeys = await import("../../lib/rotation");
     const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
 
     const { VercelClient } = await import("../../lib/vercel-api");
@@ -225,7 +225,7 @@ describe("run", () => {
   });
 
   it("--init sentry --env all calls rotate once with targetEnv all", async () => {
-    const rotateKeys = await import("../../rotate-keys");
+    const rotateKeys = await import("../../lib/rotation");
     const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
 
     const { VercelClient } = await import("../../lib/vercel-api");
@@ -276,7 +276,7 @@ describe("run", () => {
   });
 
   it("--init all --env all calls Sentry once and Firebase per deployment env", async () => {
-    const rotateKeys = await import("../../rotate-keys");
+    const rotateKeys = await import("../../lib/rotation");
     const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
 
     const { VercelClient } = await import("../../lib/vercel-api");
@@ -345,7 +345,7 @@ describe("run", () => {
   });
 
   it("dry-run logs 'Would init secrets' when init is non-null", async () => {
-    const rotateKeys = await import("../../rotate-keys");
+    const rotateKeys = await import("../../lib/rotation");
     vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
     const mockLog = vi
       .spyOn(console, "log")
