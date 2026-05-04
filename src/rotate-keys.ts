@@ -712,7 +712,7 @@ async function initFirebase(
   const currentEnvs = await client.listEnvVars();
   for (const vercelEnv of targetEnvs(opts.targetEnv)) {
     const keyFile = path.join(tempDir, `key-${vercelEnv}.json`);
-    createGcpKey(keyFile, saEmail, gcpProject);
+    createGcpKey(keyFile, saEmail!, gcpProject!);
 
     const newSaJson = JSON.parse(fs.readFileSync(keyFile, "utf-8")) as {
       private_key_id: string;

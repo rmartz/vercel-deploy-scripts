@@ -253,6 +253,7 @@ export async function run(opts: Options): Promise<void> {
     await rotateKeysRun({
       targetEnv: rotateTarget,
       invalidateKeys: opts.invalidateKeys,
+      init: null,
     });
   }
 }
