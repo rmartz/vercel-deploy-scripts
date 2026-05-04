@@ -5,6 +5,7 @@ import * as os from "os";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { run } from "../../sync-env";
+import { makeDeploymentDir } from "../fixtures";
 
 // ─── run — Vercel API create / update ─────────────────────────────────────────
 
@@ -25,25 +26,6 @@ describe("run", () => {
     vi.restoreAllMocks();
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
-
-  function makeDeploymentDir(
-    active: string[],
-    envVars: Record<string, Record<string, string>>,
-  ): string {
-    const deployDir = path.join(tmpDir, "deployment");
-    fs.mkdirSync(deployDir);
-    fs.writeFileSync(
-      path.join(deployDir, "environments.yml"),
-      `active:\n${active.map((e) => `  - ${e}`).join("\n")}\n`,
-    );
-    for (const [envName, vars] of Object.entries(envVars)) {
-      const lines = Object.entries(vars)
-        .map(([k, v]) => `${k}: "${v}"`)
-        .join("\n");
-      fs.writeFileSync(path.join(deployDir, `${envName}.yml`), lines + "\n");
-    }
-    return deployDir;
-  }
 
   it("calls Vercel API to create env vars that do not exist", async () => {
     const { VercelClient } = await import("../../lib/vercel-api");
@@ -68,7 +50,7 @@ describe("run", () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    const deployDir = makeDeploymentDir(["production"], {
+    const deployDir = makeDeploymentDir(tmpDir, ["production"], {
       production: { MY_KEY: "my_value" },
     });
     await run({ targetEnv: "all", deploymentDir: deployDir, dryRun: false });
@@ -110,7 +92,7 @@ describe("run", () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    const deployDir = makeDeploymentDir(["production"], {
+    const deployDir = makeDeploymentDir(tmpDir, ["production"], {
       production: { MY_KEY: "new_value" },
     });
     await run({

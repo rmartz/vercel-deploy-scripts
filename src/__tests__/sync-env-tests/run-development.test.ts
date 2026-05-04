@@ -5,6 +5,7 @@ import * as os from "os";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { run } from "../../sync-env";
+import { makeDeploymentDir } from "../fixtures";
 
 // ─── run — development env skip ───────────────────────────────────────────────
 
@@ -26,25 +27,6 @@ describe("run", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  function makeDeploymentDir(
-    active: string[],
-    envVars: Record<string, Record<string, string>>,
-  ): string {
-    const deployDir = path.join(tmpDir, "deployment");
-    fs.mkdirSync(deployDir);
-    fs.writeFileSync(
-      path.join(deployDir, "environments.yml"),
-      `active:\n${active.map((e) => `  - ${e}`).join("\n")}\n`,
-    );
-    for (const [envName, vars] of Object.entries(envVars)) {
-      const lines = Object.entries(vars)
-        .map(([k, v]) => `${k}: "${v}"`)
-        .join("\n");
-      fs.writeFileSync(path.join(deployDir, `${envName}.yml`), lines + "\n");
-    }
-    return deployDir;
-  }
-
   it("skips public var sync for development when rotateKeys is true", async () => {
     const { VercelClient } = await import("../../lib/vercel-api");
     const mockListEnvVars = vi
@@ -63,7 +45,7 @@ describe("run", () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    const deployDir = makeDeploymentDir(["development"], {
+    const deployDir = makeDeploymentDir(tmpDir, ["development"], {
       development: { DEV_KEY: "val" },
     });
     await run({
@@ -98,7 +80,7 @@ describe("run", () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    const deployDir = makeDeploymentDir(["development"], {
+    const deployDir = makeDeploymentDir(tmpDir, ["development"], {
       development: { DEV_KEY: "val" },
     });
     await run({
@@ -125,7 +107,7 @@ describe("run", () => {
     );
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    const deployDir = makeDeploymentDir(["development"], {
+    const deployDir = makeDeploymentDir(tmpDir, ["development"], {
       development: { DEV_KEY: "val" },
     });
     await run({

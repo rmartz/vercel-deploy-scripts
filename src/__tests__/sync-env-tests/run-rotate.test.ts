@@ -5,6 +5,7 @@ import * as os from "os";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { run } from "../../sync-env";
+import { makeDeploymentDir } from "../fixtures";
 
 // ─── run — --rotate-keys / --init forwarding ──────────────────────────────────
 
@@ -26,25 +27,6 @@ describe("run", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  function makeDeploymentDir(
-    active: string[],
-    envVars: Record<string, Record<string, string>>,
-  ): string {
-    const deployDir = path.join(tmpDir, "deployment");
-    fs.mkdirSync(deployDir);
-    fs.writeFileSync(
-      path.join(deployDir, "environments.yml"),
-      `active:\n${active.map((e) => `  - ${e}`).join("\n")}\n`,
-    );
-    for (const [envName, vars] of Object.entries(envVars)) {
-      const lines = Object.entries(vars)
-        .map(([k, v]) => `${k}: "${v}"`)
-        .join("\n");
-      fs.writeFileSync(path.join(deployDir, `${envName}.yml`), lines + "\n");
-    }
-    return deployDir;
-  }
-
   it("calls rotate-keys run after syncing when rotateKeys is true", async () => {
     const rotateKeys = await import("../../rotate-keys");
     const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
@@ -65,7 +47,7 @@ describe("run", () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    const deployDir = makeDeploymentDir(["production"], {
+    const deployDir = makeDeploymentDir(tmpDir, ["production"], {
       production: { MY_KEY: "val" },
     });
     await run({
@@ -104,7 +86,7 @@ describe("run", () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    const deployDir = makeDeploymentDir(["staging"], {
+    const deployDir = makeDeploymentDir(tmpDir, ["staging"], {
       staging: { MY_KEY: "val" },
     });
     await run({
@@ -129,7 +111,7 @@ describe("run", () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    const deployDir = makeDeploymentDir(["production"], {
+    const deployDir = makeDeploymentDir(tmpDir, ["production"], {
       production: { MY_KEY: "val" },
     });
     await run({
@@ -164,7 +146,7 @@ describe("run", () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    const deployDir = makeDeploymentDir(["production"], {
+    const deployDir = makeDeploymentDir(tmpDir, ["production"], {
       production: { MY_KEY: "val" },
     });
     await run({
@@ -191,7 +173,7 @@ describe("run", () => {
       .mockImplementation(() => undefined);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    const deployDir = makeDeploymentDir(["production"], {
+    const deployDir = makeDeploymentDir(tmpDir, ["production"], {
       production: { MY_KEY: "val" },
     });
     await run({

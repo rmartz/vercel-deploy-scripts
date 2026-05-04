@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { run } from "../../sync-env";
 import { FatalError } from "../../lib/logger";
+import { makeDeploymentDir } from "../fixtures";
 
 // ─── run — dry-run behaviour ──────────────────────────────────────────────────
 
@@ -27,28 +28,9 @@ describe("run", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  function makeDeploymentDir(
-    active: string[],
-    envVars: Record<string, Record<string, string>>,
-  ): string {
-    const deployDir = path.join(tmpDir, "deployment");
-    fs.mkdirSync(deployDir);
-    fs.writeFileSync(
-      path.join(deployDir, "environments.yml"),
-      `active:\n${active.map((e) => `  - ${e}`).join("\n")}\n`,
-    );
-    for (const [envName, vars] of Object.entries(envVars)) {
-      const lines = Object.entries(vars)
-        .map(([k, v]) => `${k}: "${v}"`)
-        .join("\n");
-      fs.writeFileSync(path.join(deployDir, `${envName}.yml`), lines + "\n");
-    }
-    return deployDir;
-  }
-
   it("throws FatalError when VERCEL_TOKEN is not set", async () => {
     delete process.env.VERCEL_TOKEN;
-    const deployDir = makeDeploymentDir(["production"], {});
+    const deployDir = makeDeploymentDir(tmpDir, ["production"], {});
     await expect(
       run({ targetEnv: "all", deploymentDir: deployDir, dryRun: false }),
     ).rejects.toThrow(FatalError);
@@ -82,7 +64,7 @@ describe("run", () => {
   });
 
   it("throws FatalError when --env is not in active environments", async () => {
-    const deployDir = makeDeploymentDir(["production"], {
+    const deployDir = makeDeploymentDir(tmpDir, ["production"], {
       production: { KEY: "val" },
     });
     await expect(
@@ -91,7 +73,7 @@ describe("run", () => {
   });
 
   it("dry run logs variables without calling Vercel API", async () => {
-    const deployDir = makeDeploymentDir(["staging"], {
+    const deployDir = makeDeploymentDir(tmpDir, ["staging"], {
       staging: { MY_VAR: "hello" },
     });
     const logs: string[] = [];
@@ -107,7 +89,7 @@ describe("run", () => {
   });
 
   it("dry run maps staging → preview in log output", async () => {
-    const deployDir = makeDeploymentDir(["staging"], {
+    const deployDir = makeDeploymentDir(tmpDir, ["staging"], {
       staging: { MY_VAR: "hello" },
     });
     const logs: string[] = [];
@@ -124,7 +106,7 @@ describe("run", () => {
   });
 
   it("dry run maps production → production", async () => {
-    const deployDir = makeDeploymentDir(["production"], {
+    const deployDir = makeDeploymentDir(tmpDir, ["production"], {
       production: { MY_VAR: "hello" },
     });
     const logs: string[] = [];
@@ -141,7 +123,7 @@ describe("run", () => {
   });
 
   it("dry run emits a warning when per-env YAML is missing", async () => {
-    const deployDir = makeDeploymentDir(["staging"], {});
+    const deployDir = makeDeploymentDir(tmpDir, ["staging"], {});
     const warnings: string[] = [];
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     vi.spyOn(console, "error").mockImplementation((msg: string) =>

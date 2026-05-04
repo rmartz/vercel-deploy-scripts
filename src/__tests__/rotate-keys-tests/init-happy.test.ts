@@ -17,6 +17,7 @@ describe("run — --init happy paths", () => {
   afterEach(() => {
     process.env = origEnv;
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("--init firebase creates a GCP key, pushes FIREBASE_SERVICE_ACCOUNT once (not per-iteration), and triggers a redeployment", async () => {
