@@ -1,3 +1,10 @@
+## [2.1.2](https://github.com/rmartz/vercel-deploy-scripts/compare/v2.1.1...v2.1.2) (2026-05-04)
+
+
+### Bug Fixes
+
+* support nested variables: YAML format in parseDeploymentEnv ([#47](https://github.com/rmartz/vercel-deploy-scripts/issues/47)) ([84df598](https://github.com/rmartz/vercel-deploy-scripts/commit/84df59876b3a2a699f0b3850a5b5f8cf6a2018e0)), closes [#48](https://github.com/rmartz/vercel-deploy-scripts/issues/48)
+
 ## [2.1.1](https://github.com/rmartz/vercel-deploy-scripts/compare/v2.1.0...v2.1.1) (2026-05-04)
 
 
