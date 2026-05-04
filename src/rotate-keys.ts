@@ -60,7 +60,9 @@ OPTIONAL ENVIRONMENT VARIABLES:
   GCLOUD_PROJECT        GCP project ID (auto-detected from service account JSON)
 
 ADDITIONAL VARIABLES (required with --init firebase):
-  FIREBASE_SA_EMAIL     Service account email to create the initial GCP key for`;
+  GCLOUD_PROJECT        GCP project ID (required for --init firebase; auto-detected
+                        from service account JSON during normal rotation)
+  FIREBASE_SA_EMAIL     Service account email for which the initial GCP key will be created`;
 
 export function parseArgs(argv: string[]): Options {
   const opts: Options = { targetEnv: "all", invalidateKeys: true, init: null };
@@ -103,10 +105,10 @@ function targetEnvs(targetEnv: string): string[] {
 
 // ─── Prerequisites ────────────────────────────────────────────────────────────
 
-function checkPrereqs(): void {
+function checkPrereqs(needsGcloud: boolean): void {
   const missing: string[] = [];
   if (!commandExists("vercel")) missing.push("vercel");
-  if (!commandExists("gcloud")) missing.push("gcloud");
+  if (needsGcloud && !commandExists("gcloud")) missing.push("gcloud");
   if (missing.length > 0) err(`Missing required tools: ${missing.join(" ")}`);
 
   if (!process.env.VERCEL_TOKEN)
@@ -767,7 +769,11 @@ async function initSentry(opts: Options, client: VercelClient): Promise<void> {
 }
 
 export async function run(opts: Options): Promise<void> {
-  checkPrereqs();
+  // gcloud is only needed for Firebase-related flows.
+  // When opts.init === null we don't yet know hasFirebase, so we conservatively
+  // require gcloud unless we know this is a Sentry-only init.
+  const needsGcloud = opts.init !== "sentry";
+  checkPrereqs(needsGcloud);
 
   const project = detectProject();
   log(
@@ -793,12 +799,12 @@ export async function run(opts: Options): Promise<void> {
   if (opts.init) {
     if ((opts.init === "all" || opts.init === "firebase") && hasFirebase) {
       err(
-        "Firebase keys already exist in this Vercel project — use rotate-keys to update them, not --init.",
+        "Firebase keys already exist in this Vercel project — use sync-env --rotate-keys to update them, not --init.",
       );
     }
     if ((opts.init === "all" || opts.init === "sentry") && hasSentry) {
       err(
-        "Sentry keys already exist in this Vercel project — use rotate-keys to update them, not --init.",
+        "Sentry keys already exist in this Vercel project — use sync-env --rotate-keys to update them, not --init.",
       );
     }
   } else if (!hasFirebase && !hasSentry) {

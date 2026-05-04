@@ -452,6 +452,68 @@ describe("run", () => {
     expect(mockRotate).not.toHaveBeenCalled();
   });
 
+  it("forwards non-null init value to rotate-keys run", async () => {
+    const rotateKeys = await import("../rotate-keys");
+    const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
+
+    const { VercelClient } = await import("../lib/vercel-api");
+    vi.spyOn(VercelClient.prototype, "listEnvVars").mockResolvedValue({
+      envs: [],
+      pagination: undefined,
+    });
+    vi.spyOn(VercelClient.prototype, "findEnvVar").mockReturnValue(undefined);
+    vi.spyOn(VercelClient.prototype, "createEnvVar").mockResolvedValue({
+      id: "x",
+      key: "k",
+      value: "v",
+      target: [],
+      type: "plain",
+    });
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const deployDir = makeDeploymentDir(["production"], {
+      production: { MY_KEY: "val" },
+    });
+    await run({
+      targetEnv: "all",
+      deploymentDir: deployDir,
+      dryRun: false,
+      rotateKeys: true,
+      invalidateKeys: true,
+      init: "firebase",
+    });
+
+    expect(mockRotate).toHaveBeenCalledWith({
+      targetEnv: "all",
+      invalidateKeys: true,
+      init: "firebase",
+    });
+  });
+
+  it("dry-run logs 'Would init secrets' when init is non-null", async () => {
+    const rotateKeys = await import("../rotate-keys");
+    vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
+    const mockLog = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const deployDir = makeDeploymentDir(["production"], {
+      production: { MY_KEY: "val" },
+    });
+    await run({
+      targetEnv: "all",
+      deploymentDir: deployDir,
+      dryRun: true,
+      rotateKeys: true,
+      invalidateKeys: true,
+      init: "sentry",
+    });
+
+    const logMessages = mockLog.mock.calls.map((c) => c[0] as string);
+    expect(logMessages.some((m) => m.includes("Would init secrets"))).toBe(true);
+    expect(logMessages.some((m) => m.includes("Would rotate keys"))).toBe(false);
+  });
+
   it("skips public var sync for development when rotateKeys is true", async () => {
     const { VercelClient } = await import("../lib/vercel-api");
     const mockListEnvVars = vi
