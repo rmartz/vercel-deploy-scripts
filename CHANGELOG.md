@@ -1,3 +1,10 @@
+# [2.1.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v2.0.0...v2.1.0) (2026-05-04)
+
+
+### Features
+
+* read Firebase/Sentry config from deployment YAML in sync-env ([971d3ec](https://github.com/rmartz/vercel-deploy-scripts/commit/971d3ec931d8586e42c9604423b40722b824d0a5))
+
 # [2.0.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v1.8.0...v2.0.0) (2026-05-04)
 
 
