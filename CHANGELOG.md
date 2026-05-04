@@ -1,3 +1,10 @@
+## [1.7.1](https://github.com/rmartz/vercel-deploy-scripts/compare/v1.7.0...v1.7.1) (2026-05-04)
+
+
+### Bug Fixes
+
+* replace shell built-in command -v with which in commandExists ([#30](https://github.com/rmartz/vercel-deploy-scripts/issues/30)) ([235898d](https://github.com/rmartz/vercel-deploy-scripts/commit/235898d03e19360f2990f2d5eb7aa4d5382c6f34))
+
 # [1.7.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v1.6.0...v1.7.0) (2026-05-03)
 
 
