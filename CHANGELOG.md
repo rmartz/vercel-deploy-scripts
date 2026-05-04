@@ -1,3 +1,20 @@
+# [2.0.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v1.8.0...v2.0.0) (2026-05-04)
+
+
+### Bug Fixes
+
+* support feat!: breaking change syntax in semantic-release ([#33](https://github.com/rmartz/vercel-deploy-scripts/issues/33)) ([e97159a](https://github.com/rmartz/vercel-deploy-scripts/commit/e97159ae5a9df9d7f74906d0c5032fca94ade250)), closes [#32](https://github.com/rmartz/vercel-deploy-scripts/issues/32)
+
+
+### Features
+
+* make sync-env the sole public entrypoint ([#32](https://github.com/rmartz/vercel-deploy-scripts/issues/32)) ([9fe261a](https://github.com/rmartz/vercel-deploy-scripts/commit/9fe261a7562f9e7f971ce617b19f0843133293ce)), closes [#31](https://github.com/rmartz/vercel-deploy-scripts/issues/31)
+
+
+### BREAKING CHANGES
+
+* make sync-env the sole public entrypoint (#32)
+
 # [1.8.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v1.7.1...v1.8.0) (2026-05-04)
 
 
