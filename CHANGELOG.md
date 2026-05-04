@@ -1,3 +1,10 @@
+## [2.1.1](https://github.com/rmartz/vercel-deploy-scripts/compare/v2.1.0...v2.1.1) (2026-05-04)
+
+
+### Bug Fixes
+
+* surface Vercel API errors as clean FatalError messages ([843c3bf](https://github.com/rmartz/vercel-deploy-scripts/commit/843c3bfe555d5464529bab0d0f8efa8cbefd04a9))
+
 # [2.1.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v2.0.0...v2.1.0) (2026-05-04)
 
 
