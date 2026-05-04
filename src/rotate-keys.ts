@@ -57,12 +57,14 @@ OPTIONAL ENVIRONMENT VARIABLES:
   SENTRY_ORG            Sentry organization slug (required with Sentry rotation)
   SENTRY_PROJECT        Sentry project slug (required with Sentry rotation)
   SENTRY_URL            Sentry base URL (default: https://sentry.io)
-  GCLOUD_PROJECT        GCP project ID (auto-detected from service account JSON)
+  GCLOUD_PROJECT        GCP project ID (required for --init firebase; auto-detected
+                        from service account JSON during normal rotation)
 
 ADDITIONAL VARIABLES (required with --init firebase):
   GCLOUD_PROJECT        GCP project ID (required for --init firebase; auto-detected
                         from service account JSON during normal rotation)
-  FIREBASE_SA_EMAIL     Service account email for which the initial GCP key will be created`;
+  FIREBASE_SA_EMAIL     Service account email for which the initial GCP key will be
+                        created (e.g. my-sa@my-project.iam.gserviceaccount.com)`;
 
 export function parseArgs(argv: string[]): Options {
   const opts: Options = { targetEnv: "all", invalidateKeys: true, init: null };
@@ -709,6 +711,7 @@ async function initFirebase(
   const gcpProject = process.env.GCLOUD_PROJECT;
   if (!gcpProject) err("GCLOUD_PROJECT is required for --init firebase");
 
+  const currentEnvs = await client.listEnvVars();
   for (const vercelEnv of targetEnvs(opts.targetEnv)) {
     const keyFile = path.join(tempDir, `key-${vercelEnv}.json`);
     createGcpKey(keyFile, saEmail!, gcpProject!);
@@ -718,8 +721,6 @@ async function initFirebase(
       [key: string]: unknown;
     };
     log(`  [${vercelEnv}] Created key ID: ${newSaJson.private_key_id}`);
-
-    const currentEnvs = await client.listEnvVars();
     await client.setEnvForTarget(
       "FIREBASE_SERVICE_ACCOUNT",
       JSON.stringify(newSaJson),
@@ -754,8 +755,8 @@ async function initSentry(opts: Options, client: VercelClient): Promise<void> {
   );
   log(`  New Sentry key ID: ${newKey.id}`);
 
+  const currentEnvs = await client.listEnvVars();
   for (const vercelEnv of targetEnvs(opts.targetEnv)) {
-    const currentEnvs = await client.listEnvVars();
     await client.setEnvForTarget(
       dsnKeyName,
       newKey.dsn.public,

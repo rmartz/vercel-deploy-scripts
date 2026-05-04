@@ -1,3 +1,17 @@
+# [1.8.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v1.7.1...v1.8.0) (2026-05-04)
+
+
+### Features
+
+* add --init flag to rotate-keys for bootstrapping secrets into a fresh project ([#31](https://github.com/rmartz/vercel-deploy-scripts/issues/31)) ([db33f93](https://github.com/rmartz/vercel-deploy-scripts/commit/db33f93e55a9a7266b6568341b3f60dd4891ff98)), closes [#25](https://github.com/rmartz/vercel-deploy-scripts/issues/25)
+
+## [1.7.1](https://github.com/rmartz/vercel-deploy-scripts/compare/v1.7.0...v1.7.1) (2026-05-04)
+
+
+### Bug Fixes
+
+* replace shell built-in command -v with which in commandExists ([#30](https://github.com/rmartz/vercel-deploy-scripts/issues/30)) ([235898d](https://github.com/rmartz/vercel-deploy-scripts/commit/235898d03e19360f2990f2d5eb7aa4d5382c6f34))
+
 # [1.7.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v1.6.0...v1.7.0) (2026-05-03)
 
 

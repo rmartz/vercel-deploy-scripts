@@ -17,6 +17,6 @@ export function run(
 }
 
 export function commandExists(cmd: string): boolean {
-  const result = spawnSync("command", ["-v", cmd], { shell: true });
+  const result = spawnSync("which", [cmd]);
   return result.status === 0;
 }

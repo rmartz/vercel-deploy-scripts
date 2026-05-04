@@ -494,7 +494,9 @@ describe("run", () => {
   it("dry-run logs 'Would init secrets' when init is non-null", async () => {
     const rotateKeys = await import("../rotate-keys");
     vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
-    const mockLog = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const mockLog = vi
+      .spyOn(console, "log")
+      .mockImplementation(() => undefined);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     const deployDir = makeDeploymentDir(["production"], {
@@ -510,8 +512,12 @@ describe("run", () => {
     });
 
     const logMessages = mockLog.mock.calls.map((c) => c[0] as string);
-    expect(logMessages.some((m) => m.includes("Would init secrets"))).toBe(true);
-    expect(logMessages.some((m) => m.includes("Would rotate keys"))).toBe(false);
+    expect(logMessages.some((m) => m.includes("Would init secrets"))).toBe(
+      true,
+    );
+    expect(logMessages.some((m) => m.includes("Would rotate keys"))).toBe(
+      false,
+    );
   });
 
   it("skips public var sync for development when rotateKeys is true", async () => {
