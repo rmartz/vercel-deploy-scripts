@@ -55,12 +55,21 @@ OPTIONAL ENVIRONMENT VARIABLES:
   VERCEL_TEAM_ID     Vercel team/org ID (auto-detected from .vercel/project.json)
 
 ADDITIONAL VARIABLES (required with --rotate-keys):
-  SENTRY_AUTH_TOKEN  Sentry API token (required when Sentry DSN is present)
-  SENTRY_ORG         Sentry organization slug (required with Sentry rotation)
-  SENTRY_PROJECT     Sentry project slug (required with Sentry rotation)
-  GCLOUD_PROJECT     GCP project ID (required with --init firebase; auto-detected
-                     from service account JSON during rotation)
-  FIREBASE_SA_EMAIL  Firebase service account email (required with --init firebase)
+  SENTRY_AUTH_TOKEN  Sentry API token with project read/write access (required
+                     when Sentry DSN is present; must be set in shell environment)
+
+The following are read automatically from the deployment YAML when available
+(SENTRY_ORG, SENTRY_PROJECT, FIREBASE_PROJECT_ID, FIREBASE_SA_EMAIL keys).
+Shell environment variables are used as a fallback if the YAML key is absent
+or empty.
+
+  SENTRY_ORG         Sentry organization slug (SENTRY_ORG in YAML or shell)
+  SENTRY_PROJECT     Sentry project slug (SENTRY_PROJECT in YAML or shell)
+  GCLOUD_PROJECT     GCP project ID for --init firebase (FIREBASE_PROJECT_ID in
+                     YAML or GCLOUD_PROJECT in shell; auto-detected from service
+                     account JSON during normal rotation)
+  FIREBASE_SA_EMAIL  Firebase service account email for --init firebase
+                     (FIREBASE_SA_EMAIL in YAML or shell)
 
 ENVIRONMENT MAPPING (matches Terraform target_map):
   production  → production (Vercel target)
@@ -269,13 +278,43 @@ export async function run(opts: Options): Promise<void> {
   );
 
   if (opts.rotateKeys) {
-    const rotateTarget =
-      opts.targetEnv === "all" ? "all" : vercelTarget(opts.targetEnv);
-    await rotateKeysRun({
-      targetEnv: rotateTarget,
-      invalidateKeys: opts.invalidateKeys,
-      init: opts.init,
-    });
+    if (opts.init && opts.targetEnv === "all") {
+      // --init with all envs: each deployment env has its own Firebase project
+      // and SA email, so rotate once per env with that env's YAML values.
+      // Development is skipped (no remote deployment target).
+      for (const envName of envList) {
+        if (envName === "development") continue;
+        const envVars = parseDeploymentEnv(opts.deploymentDir, envName);
+        await rotateKeysRun({
+          targetEnv: vercelTarget(envName),
+          invalidateKeys: opts.invalidateKeys,
+          init: opts.init,
+          firebaseSaEmail: envVars.FIREBASE_SA_EMAIL || undefined,
+          gcpProject: envVars.FIREBASE_PROJECT_ID || undefined,
+          sentryOrg: envVars.SENTRY_ORG || undefined,
+          sentryProject: envVars.SENTRY_PROJECT || undefined,
+        });
+      }
+    } else {
+      // Single-env or rotation-only: one call. For --env all, read YAML values
+      // from the first active env (Sentry org/project are the same across envs;
+      // Firebase credentials are auto-detected from existing keys during rotation).
+      const sourceEnv = opts.targetEnv === "all" ? envList[0] : opts.targetEnv;
+      const envVars = sourceEnv
+        ? parseDeploymentEnv(opts.deploymentDir, sourceEnv)
+        : {};
+      const rotateTarget =
+        opts.targetEnv === "all" ? "all" : vercelTarget(opts.targetEnv);
+      await rotateKeysRun({
+        targetEnv: rotateTarget,
+        invalidateKeys: opts.invalidateKeys,
+        init: opts.init,
+        firebaseSaEmail: envVars.FIREBASE_SA_EMAIL || undefined,
+        gcpProject: envVars.FIREBASE_PROJECT_ID || undefined,
+        sentryOrg: envVars.SENTRY_ORG || undefined,
+        sentryProject: envVars.SENTRY_PROJECT || undefined,
+      });
+    }
   }
 }
 
