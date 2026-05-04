@@ -101,7 +101,7 @@ describe("run", () => {
       dryRun: false,
       rotateKeys: false,
       invalidateKeys: true,
-      init: null,
+      init: undefined,
     });
 
     expect(mockUpdate).toHaveBeenCalledWith("env_existing", "new_value");

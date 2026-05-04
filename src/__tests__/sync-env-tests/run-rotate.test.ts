@@ -56,13 +56,11 @@ describe("run", () => {
       dryRun: false,
       rotateKeys: true,
       invalidateKeys: true,
-      init: null,
     });
 
     expect(mockRotate).toHaveBeenCalledWith({
       targetEnv: "all",
       invalidateKeys: true,
-      init: null,
     });
   });
 
@@ -95,13 +93,11 @@ describe("run", () => {
       dryRun: false,
       rotateKeys: true,
       invalidateKeys: false,
-      init: null,
     });
 
     expect(mockRotate).toHaveBeenCalledWith({
       targetEnv: "preview",
       invalidateKeys: false,
-      init: null,
     });
   });
 
@@ -120,7 +116,6 @@ describe("run", () => {
       dryRun: true,
       rotateKeys: true,
       invalidateKeys: true,
-      init: null,
     });
 
     expect(mockRotate).not.toHaveBeenCalled();

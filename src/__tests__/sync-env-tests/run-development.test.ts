@@ -54,7 +54,6 @@ describe("run", () => {
       dryRun: false,
       rotateKeys: true,
       invalidateKeys: true,
-      init: null,
     });
 
     expect(mockCreateEnvVar).not.toHaveBeenCalled();
@@ -89,7 +88,6 @@ describe("run", () => {
       dryRun: false,
       rotateKeys: false,
       invalidateKeys: true,
-      init: null,
     });
 
     expect(mockCreateEnvVar).toHaveBeenCalledWith(
@@ -116,7 +114,6 @@ describe("run", () => {
       dryRun: true,
       rotateKeys: true,
       invalidateKeys: true,
-      init: null,
     });
 
     expect(
