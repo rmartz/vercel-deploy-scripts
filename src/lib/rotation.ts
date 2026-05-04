@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
+import { resolveVercelToken } from "./auth";
 import { err, log, warn } from "./logger";
 import { detectProject } from "./project";
 import { commandExists, run as runCmd } from "./subprocess";
@@ -40,8 +41,10 @@ function checkPrereqs(needsGcloud: boolean): void {
   if (needsGcloud && !commandExists("gcloud")) missing.push("gcloud");
   if (missing.length > 0) err(`Missing required tools: ${missing.join(" ")}`);
 
-  if (!process.env.VERCEL_TOKEN)
-    err("VERCEL_TOKEN environment variable is required");
+  if (!resolveVercelToken())
+    err(
+      "No Vercel token found. Set VERCEL_TOKEN or run 'vercel login' to authenticate.",
+    );
 
   try {
     runCmd("vercel", ["whoami"]);
@@ -65,7 +68,7 @@ export async function run(opts: RotationOptions): Promise<void> {
   );
 
   const client = new VercelClient(
-    process.env.VERCEL_TOKEN!,
+    resolveVercelToken()!,
     project.projectId,
     project.teamId,
   );

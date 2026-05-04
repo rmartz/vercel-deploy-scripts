@@ -7,6 +7,7 @@ import {
   parseDeploymentEnv,
   vercelTarget,
 } from "./lib/environments";
+import { resolveVercelToken } from "./lib/auth";
 import { FatalError, err, log, warn } from "./lib/logger";
 import { detectProject } from "./lib/project";
 import { run as rotateKeysRun } from "./lib/rotation";
@@ -47,8 +48,10 @@ OPTIONS:
   --dry-run                Print what would change without making any API calls
   -h, --help               Show this help
 
-REQUIRED ENVIRONMENT VARIABLES:
-  VERCEL_TOKEN       Vercel API token with project read/write access
+AUTHENTICATION (one of):
+  VERCEL_TOKEN       Vercel API token (takes precedence when set)
+  vercel login       Token is read automatically from the Vercel CLI auth file
+                     when VERCEL_TOKEN is not set
 
 OPTIONAL ENVIRONMENT VARIABLES:
   VERCEL_PROJECT_ID  Vercel project ID (auto-detected from .vercel/project.json)
@@ -201,8 +204,10 @@ function validateInitConfig(opts: Options, envList: string[]): void {
 }
 
 function checkPrereqs(opts: Options): void {
-  if (!process.env.VERCEL_TOKEN)
-    err("VERCEL_TOKEN environment variable is required");
+  if (!resolveVercelToken())
+    err(
+      "No Vercel token found. Set VERCEL_TOKEN or run 'vercel login' to authenticate.",
+    );
   if (!fs.existsSync(opts.deploymentDir))
     err(`Deployment directory not found: ${opts.deploymentDir}`);
   const envsFile = path.join(opts.deploymentDir, "environments.yml");
@@ -268,7 +273,7 @@ export async function run(opts: Options): Promise<void> {
   }
 
   const client = new VercelClient(
-    process.env.VERCEL_TOKEN!,
+    resolveVercelToken()!,
     project.projectId,
     project.teamId,
   );
