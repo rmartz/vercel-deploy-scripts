@@ -434,13 +434,16 @@ describe("run — --init happy paths", () => {
     vi.spyOn(VercelClient.prototype, "triggerRedeployment").mockResolvedValue(
       "dep_2",
     );
-    vi.spyOn(
-      VercelClient.prototype,
-      "pollDeploymentStatus",
-    ).mockResolvedValue(undefined);
+    vi.spyOn(VercelClient.prototype, "pollDeploymentStatus").mockResolvedValue(
+      undefined,
+    );
 
     const { run } = await import("../rotate-keys");
-    await run({ targetEnv: "production", invalidateKeys: true, init: "firebase" });
+    await run({
+      targetEnv: "production",
+      invalidateKeys: true,
+      init: "firebase",
+    });
 
     // listEnvVars should be called exactly twice: once in run() for the guard
     // check, and once in initFirebase before the loop (not once per iteration)
@@ -487,10 +490,9 @@ describe("run — --init happy paths", () => {
     vi.spyOn(VercelClient.prototype, "triggerRedeployment").mockResolvedValue(
       "dep_2",
     );
-    vi.spyOn(
-      VercelClient.prototype,
-      "pollDeploymentStatus",
-    ).mockResolvedValue(undefined);
+    vi.spyOn(VercelClient.prototype, "pollDeploymentStatus").mockResolvedValue(
+      undefined,
+    );
 
     // Mock global fetch for Sentry API call
     const fakeDsn = "https://abc123@o0.ingest.sentry.io/1";

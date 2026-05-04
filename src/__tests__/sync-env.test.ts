@@ -17,6 +17,7 @@ describe("parseArgs", () => {
       dryRun: false,
       rotateKeys: false,
       invalidateKeys: true,
+      init: null,
     });
   });
 
@@ -54,6 +55,36 @@ describe("parseArgs", () => {
     const opts = parseArgs(["node", "sync-env"]);
     expect(opts.rotateKeys).toBe(false);
     expect(opts.invalidateKeys).toBe(true);
+  });
+
+  it("--init alone sets init to all and implies rotateKeys", () => {
+    const opts = parseArgs(["node", "sync-env", "--init"]);
+    expect(opts.init).toBe("all");
+    expect(opts.rotateKeys).toBe(true);
+  });
+
+  it("--init firebase sets init to firebase and implies rotateKeys", () => {
+    const opts = parseArgs(["node", "sync-env", "--init", "firebase"]);
+    expect(opts.init).toBe("firebase");
+    expect(opts.rotateKeys).toBe(true);
+  });
+
+  it("--init sentry sets init to sentry and implies rotateKeys", () => {
+    const opts = parseArgs(["node", "sync-env", "--init", "sentry"]);
+    expect(opts.init).toBe("sentry");
+    expect(opts.rotateKeys).toBe(true);
+  });
+
+  it("--init followed by a non-service arg treats arg as next flag", () => {
+    const opts = parseArgs([
+      "node",
+      "sync-env",
+      "--init",
+      "--env",
+      "production",
+    ]);
+    expect(opts.init).toBe("all");
+    expect(opts.targetEnv).toBe("production");
   });
 
   it("throws FatalError on unknown flag", () => {
@@ -316,6 +347,7 @@ describe("run", () => {
       dryRun: false,
       rotateKeys: false,
       invalidateKeys: true,
+      init: null,
     });
 
     expect(mockUpdate).toHaveBeenCalledWith("env_existing", "new_value");
@@ -350,6 +382,7 @@ describe("run", () => {
       dryRun: false,
       rotateKeys: true,
       invalidateKeys: true,
+      init: null,
     });
 
     expect(mockRotate).toHaveBeenCalledWith({
@@ -388,6 +421,7 @@ describe("run", () => {
       dryRun: false,
       rotateKeys: true,
       invalidateKeys: false,
+      init: null,
     });
 
     expect(mockRotate).toHaveBeenCalledWith({
@@ -412,9 +446,78 @@ describe("run", () => {
       dryRun: true,
       rotateKeys: true,
       invalidateKeys: true,
+      init: null,
     });
 
     expect(mockRotate).not.toHaveBeenCalled();
+  });
+
+  it("forwards non-null init value to rotate-keys run", async () => {
+    const rotateKeys = await import("../rotate-keys");
+    const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
+
+    const { VercelClient } = await import("../lib/vercel-api");
+    vi.spyOn(VercelClient.prototype, "listEnvVars").mockResolvedValue({
+      envs: [],
+      pagination: undefined,
+    });
+    vi.spyOn(VercelClient.prototype, "findEnvVar").mockReturnValue(undefined);
+    vi.spyOn(VercelClient.prototype, "createEnvVar").mockResolvedValue({
+      id: "x",
+      key: "k",
+      value: "v",
+      target: [],
+      type: "plain",
+    });
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const deployDir = makeDeploymentDir(["production"], {
+      production: { MY_KEY: "val" },
+    });
+    await run({
+      targetEnv: "all",
+      deploymentDir: deployDir,
+      dryRun: false,
+      rotateKeys: true,
+      invalidateKeys: true,
+      init: "firebase",
+    });
+
+    expect(mockRotate).toHaveBeenCalledWith({
+      targetEnv: "all",
+      invalidateKeys: true,
+      init: "firebase",
+    });
+  });
+
+  it("dry-run logs 'Would init secrets' when init is non-null", async () => {
+    const rotateKeys = await import("../rotate-keys");
+    vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
+    const mockLog = vi
+      .spyOn(console, "log")
+      .mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const deployDir = makeDeploymentDir(["production"], {
+      production: { MY_KEY: "val" },
+    });
+    await run({
+      targetEnv: "all",
+      deploymentDir: deployDir,
+      dryRun: true,
+      rotateKeys: true,
+      invalidateKeys: true,
+      init: "sentry",
+    });
+
+    const logMessages = mockLog.mock.calls.map((c) => c[0] as string);
+    expect(logMessages.some((m) => m.includes("Would init secrets"))).toBe(
+      true,
+    );
+    expect(logMessages.some((m) => m.includes("Would rotate keys"))).toBe(
+      false,
+    );
   });
 
   it("skips public var sync for development when rotateKeys is true", async () => {
@@ -444,6 +547,7 @@ describe("run", () => {
       dryRun: false,
       rotateKeys: true,
       invalidateKeys: true,
+      init: null,
     });
 
     expect(mockCreateEnvVar).not.toHaveBeenCalled();
@@ -478,6 +582,7 @@ describe("run", () => {
       dryRun: false,
       rotateKeys: false,
       invalidateKeys: true,
+      init: null,
     });
 
     expect(mockCreateEnvVar).toHaveBeenCalledWith(
@@ -504,6 +609,7 @@ describe("run", () => {
       dryRun: true,
       rotateKeys: true,
       invalidateKeys: true,
+      init: null,
     });
 
     expect(

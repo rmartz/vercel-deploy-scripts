@@ -18,6 +18,7 @@ interface Options {
   dryRun: boolean;
   rotateKeys: boolean;
   invalidateKeys: boolean;
+  init: "all" | "firebase" | "sentry" | null;
 }
 
 const USAGE = `Usage: sync-env [OPTIONS]
@@ -38,6 +39,9 @@ OPTIONS:
                            environments.yml (default: all active environments)
   --deployment-dir <path>  Path to deployment config directory (default: deployment/)
   --rotate-keys            Also rotate Firebase/Sentry secrets and redeploy
+  --init [firebase|sentry] Bootstrap initial secrets for a fresh project (implies
+                           --rotate-keys). Accepts firebase, sentry, or omit for
+                           both. Fails if the chosen secrets already exist.
   --no-invalidate          (with --rotate-keys) Skip deleting old keys after
                            redeployment
   --dry-run                Print what would change without making any API calls
@@ -54,7 +58,9 @@ ADDITIONAL VARIABLES (required with --rotate-keys):
   SENTRY_AUTH_TOKEN  Sentry API token (required when Sentry DSN is present)
   SENTRY_ORG         Sentry organization slug (required with Sentry rotation)
   SENTRY_PROJECT     Sentry project slug (required with Sentry rotation)
-  GCLOUD_PROJECT     GCP project ID (auto-detected from service account JSON)
+  GCLOUD_PROJECT     GCP project ID (required with --init firebase; auto-detected
+                     from service account JSON during rotation)
+  FIREBASE_SA_EMAIL  Firebase service account email (required with --init firebase)
 
 ENVIRONMENT MAPPING (matches Terraform target_map):
   production  → production (Vercel target)
@@ -96,6 +102,7 @@ export function parseArgs(argv: string[]): Options {
     dryRun: false,
     rotateKeys: false,
     invalidateKeys: true,
+    init: null,
   };
   const args = argv.slice(2);
 
@@ -111,6 +118,15 @@ export function parseArgs(argv: string[]): Options {
     } else if (arg === "--dry-run") {
       opts.dryRun = true;
     } else if (arg === "--rotate-keys") {
+      opts.rotateKeys = true;
+    } else if (arg === "--init") {
+      const next = args[i + 1];
+      if (next === "firebase" || next === "sentry") {
+        opts.init = next;
+        i++;
+      } else {
+        opts.init = "all";
+      }
       opts.rotateKeys = true;
     } else if (arg === "--no-invalidate") {
       opts.invalidateKeys = false;
@@ -181,7 +197,12 @@ export async function run(opts: Options): Promise<void> {
         log(`  Would sync: ${key}`);
       }
     }
-    if (opts.rotateKeys) log("Would rotate keys (skipped in dry-run)");
+    if (opts.rotateKeys)
+      log(
+        opts.init
+          ? "Would init secrets (skipped in dry-run)"
+          : "Would rotate keys (skipped in dry-run)",
+      );
     return;
   }
 
@@ -253,7 +274,7 @@ export async function run(opts: Options): Promise<void> {
     await rotateKeysRun({
       targetEnv: rotateTarget,
       invalidateKeys: opts.invalidateKeys,
-      init: null,
+      init: opts.init,
     });
   }
 }
