@@ -204,14 +204,7 @@ interface OldFirebaseKey {
   gcpProject: string;
 }
 
-export function detectFirebasePattern(
-  envs: VercelEnvVar[],
-  client: VercelClient,
-): Promise<FirebasePattern> {
-  return _detectFirebasePattern(envs, client);
-}
-
-async function _detectFirebasePattern(
+export async function detectFirebasePattern(
   envs: VercelEnvVar[],
   client: VercelClient,
 ): Promise<FirebasePattern> {
@@ -323,7 +316,7 @@ async function rotateFirebase(
   log("Rotating Firebase service account keys...");
 
   let allEnvs = await client.listEnvVars();
-  const fp = await _detectFirebasePattern(allEnvs.envs, client);
+  const fp = await detectFirebasePattern(allEnvs.envs, client);
   log(`  Key pattern: ${fp.pattern}`);
   log(`  Service account : ${fp.saEmail}`);
   log(`  GCP project     : ${fp.gcpProject}`);
