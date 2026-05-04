@@ -62,6 +62,7 @@ async function getFirebaseSaForEnv(
     (e) => e.key === "FIREBASE_PROJECT_ID" && e.target.includes(vercelEnv),
   );
   if (pidRecord) gcpProject = await client.getEnvVarValue(pidRecord.id);
+  if (!gcpProject) gcpProject = process.env.GCLOUD_PROJECT ?? "";
 
   return { email, gcpProject };
 }
@@ -139,6 +140,10 @@ async function _detectFirebasePattern(
       if (pidRecords.length > 0)
         gcpProject = await client.getEnvVarValue(pidRecords[0].id);
     }
+    if (!gcpProject)
+      err(
+        "Could not determine GCP project: set GCLOUD_PROJECT or ensure FIREBASE_PROJECT_ID is present in Vercel",
+      );
     return { pattern: "split", saEmail, gcpProject };
   }
 
