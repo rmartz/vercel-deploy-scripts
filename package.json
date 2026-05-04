@@ -22,7 +22,7 @@
   },
   "scripts": {
     "build": "tsc && chmod +x dist/sync-env.js",
-    "prepare": "pnpm run build",
+    "prepare": "tsc && chmod +x dist/sync-env.js",
     "test": "bats tests/bats/",
     "test:ts": "vitest run"
   },
