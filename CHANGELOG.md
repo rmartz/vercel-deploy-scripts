@@ -1,3 +1,10 @@
+# [2.2.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v2.1.2...v2.2.0) (2026-05-05)
+
+
+### Features
+
+* fall back to Vercel CLI auth token when VERCEL_TOKEN is unset ([#46](https://github.com/rmartz/vercel-deploy-scripts/issues/46)) ([a9fbf8e](https://github.com/rmartz/vercel-deploy-scripts/commit/a9fbf8ef5ae4f3b1b7e21e078d59c1c3b637f3b7))
+
 ## [2.1.2](https://github.com/rmartz/vercel-deploy-scripts/compare/v2.1.1...v2.1.2) (2026-05-04)
 
 
