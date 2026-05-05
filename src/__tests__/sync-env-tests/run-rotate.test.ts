@@ -703,6 +703,69 @@ describe("run", () => {
     );
   });
 
+  it("--init auto --env staging ignores production-only secrets when detecting for staging", async () => {
+    const rotateKeys = await import("../../lib/rotation");
+    const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
+
+    const { VercelClient } = await import("../../lib/vercel-api");
+    vi.spyOn(VercelClient.prototype, "listEnvVars").mockResolvedValue({
+      envs: [
+        {
+          id: "1",
+          key: "FIREBASE_SERVICE_ACCOUNT",
+          value: "{}",
+          target: ["production"],
+          type: "encrypted",
+        },
+        {
+          id: "2",
+          key: "FIREBASE_PROJECT_ID",
+          value: "my-staging-proj",
+          target: ["preview"],
+          type: "plain",
+        },
+        {
+          id: "3",
+          key: "FIREBASE_SA_EMAIL",
+          value: "sa@staging.iam.gserviceaccount.com",
+          target: ["preview"],
+          type: "plain",
+        },
+      ],
+      pagination: undefined,
+    });
+    vi.spyOn(VercelClient.prototype, "findEnvVar").mockReturnValue(undefined);
+    vi.spyOn(VercelClient.prototype, "createEnvVar").mockResolvedValue({
+      id: "x",
+      key: "k",
+      value: "v",
+      target: [],
+      type: "plain",
+    });
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const deployDir = makeDeploymentDir(tmpDir, ["staging"], {
+      staging: {
+        MY_KEY: "val",
+        FIREBASE_SA_EMAIL: "sa@staging.iam.gserviceaccount.com",
+        FIREBASE_PROJECT_ID: "my-staging-proj",
+      },
+    });
+    await run({
+      targetEnv: "staging",
+      deploymentDir: deployDir,
+      dryRun: false,
+      rotateKeys: true,
+      invalidateKeys: true,
+      init: "auto",
+    });
+
+    expect(mockRotate).toHaveBeenCalledWith(
+      expect.objectContaining({ init: "firebase" }),
+    );
+  });
+
   it("accepts shell env as fallback for missing YAML firebase vars", async () => {
     process.env.FIREBASE_SA_EMAIL = "sa@fallback.iam.gserviceaccount.com";
     process.env.GCLOUD_PROJECT = "fallback-project";

@@ -11,7 +11,7 @@ import { resolveVercelToken } from "./lib/auth";
 import { FatalError, err, log, warn } from "./lib/logger";
 import { detectProject } from "./lib/project";
 import { run as rotateKeysRun } from "./lib/rotation";
-import { VercelClient } from "./lib/vercel-api";
+import { VercelClient, VercelEnvVar } from "./lib/vercel-api";
 
 interface Options {
   targetEnv: string;
@@ -206,21 +206,31 @@ function validateInitConfig(opts: Options, envList: string[]): void {
     );
 }
 
-function resolveAutoInit(envKeys: string[]): "all" | "firebase" | "sentry" {
-  const hasFirebaseSecrets = envKeys.some((k) =>
+function resolveAutoInit(
+  envVars: VercelEnvVar[],
+  targetEnv: string,
+): "all" | "firebase" | "sentry" {
+  const relevantTargets =
+    targetEnv === "all" ? ["production", "preview"] : [vercelTarget(targetEnv)];
+  const scoped = envVars.filter((e) =>
+    e.target.some((t) => relevantTargets.includes(t)),
+  );
+  const keys = scoped.map((e) => e.key);
+
+  const hasFirebaseSecrets = keys.some((k) =>
     ["FIREBASE_SERVICE_ACCOUNT", "FIREBASE_PRIVATE_KEY"].includes(k),
   );
-  const hasFirebasePublic = envKeys.some((k) =>
+  const hasFirebasePublic = keys.some((k) =>
     [
       "FIREBASE_PROJECT_ID",
       "FIREBASE_SA_EMAIL",
       "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
     ].includes(k),
   );
-  const hasSentrySecrets = envKeys.some((k) =>
+  const hasSentrySecrets = keys.some((k) =>
     ["SENTRY_DSN", "NEXT_PUBLIC_SENTRY_DSN"].includes(k),
   );
-  const hasSentryPublic = envKeys.some((k) =>
+  const hasSentryPublic = keys.some((k) =>
     ["SENTRY_ORG", "SENTRY_PROJECT"].includes(k),
   );
 
@@ -328,7 +338,7 @@ export async function run(opts: Options): Promise<void> {
   let allEnvs = await client.listEnvVars();
 
   if (opts.init === "auto") {
-    opts.init = resolveAutoInit(allEnvs.envs.map((e) => e.key));
+    opts.init = resolveAutoInit(allEnvs.envs, opts.targetEnv);
     validateInitConfig(opts, envList);
   }
 
