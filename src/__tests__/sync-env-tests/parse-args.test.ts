@@ -54,9 +54,9 @@ describe("parseArgs", () => {
     expect(opts.invalidateKeys).toBe(true);
   });
 
-  it("--init alone sets init to all and implies rotateKeys", () => {
+  it("--init alone sets init to auto and implies rotateKeys", () => {
     const opts = parseArgs(["node", "sync-env", "--init"]);
-    expect(opts.init).toBe("all");
+    expect(opts.init).toBe("auto");
     expect(opts.rotateKeys).toBe(true);
   });
 
@@ -80,7 +80,7 @@ describe("parseArgs", () => {
       "--env",
       "production",
     ]);
-    expect(opts.init).toBe("all");
+    expect(opts.init).toBe("auto");
     expect(opts.targetEnv).toBe("production");
   });
 
