@@ -1,3 +1,17 @@
+## [2.3.3](https://github.com/rmartz/vercel-deploy-scripts/compare/v2.3.2...v2.3.3) (2026-05-06)
+
+
+### Bug Fixes
+
+* detect --init targets from local YAML instead of Vercel env vars ([#50](https://github.com/rmartz/vercel-deploy-scripts/issues/50)) ([dcd0c57](https://github.com/rmartz/vercel-deploy-scripts/commit/dcd0c576aa447ff2c22401c803440f547ad99ff2))
+
+## [2.3.2](https://github.com/rmartz/vercel-deploy-scripts/compare/v2.3.1...v2.3.2) (2026-05-06)
+
+
+### Bug Fixes
+
+* ship prebuilt dist/ and remove prepare lifecycle script ([#52](https://github.com/rmartz/vercel-deploy-scripts/issues/52)) ([2696388](https://github.com/rmartz/vercel-deploy-scripts/commit/2696388170abde822c4134aa137d7e8cc30a91a4))
+
 ## [2.3.1](https://github.com/rmartz/vercel-deploy-scripts/compare/v2.3.0...v2.3.1) (2026-05-06)
 
 
