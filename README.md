@@ -7,7 +7,7 @@ Shared deployment and security tooling for Firebase + Next.js projects hosted on
 ```json
 {
   "dependencies": {
-    "vercel-deploy-scripts": "github:rmartz/vercel-deploy-scripts#v2.3.1"
+    "vercel-deploy-scripts": "github:rmartz/vercel-deploy-scripts#v2.3.3"
   }
 }
 ```
@@ -80,16 +80,15 @@ Project and team IDs are auto-detected from `.vercel/project.json` and can be ov
 sync-env [OPTIONS]
 ```
 
-| Option                        | Description                                                                    |
-| ----------------------------- | ------------------------------------------------------------------------------ |
-| `--env <name>`                | Target one environment by name (default: all active environments)              |
-| `--deployment-dir <path>`     | Path to deployment config directory (default: `deployment/`)                   |
-| `--rotate-keys`               | Also rotate Firebase/Sentry secrets and trigger redeployment                   |
-| `--init [firebase or sentry]` | Bootstrap initial secrets for a fresh project (implies `--rotate-keys`)        |
-| `--no-invalidate`             | With `--rotate-keys`: skip deleting the old keys after redeployment            |
-| `--refresh-previews`          | With `--rotate-keys`: redeploy all READY PR preview deployments after rotation |
-| `--dry-run`                   | Print what would change without making any API calls                           |
-| `-h`, `--help`                | Show help                                                                      |
+| Option                        | Description                                                             |
+| ----------------------------- | ----------------------------------------------------------------------- |
+| `--env <name>`                | Target one environment by name (default: all active environments)       |
+| `--deployment-dir <path>`     | Path to deployment config directory (default: `deployment/`)            |
+| `--rotate-keys`               | Also rotate Firebase/Sentry secrets and trigger redeployment            |
+| `--init [firebase or sentry]` | Bootstrap initial secrets for a fresh project (implies `--rotate-keys`) |
+| `--no-invalidate`             | With `--rotate-keys`: skip deleting the old keys after redeployment     |
+| `--dry-run`                   | Print what would change without making any API calls                    |
+| `-h`, `--help`                | Show help                                                               |
 
 ### Common workflows
 
@@ -122,12 +121,6 @@ sync-env --init sentry       # Sentry only
 ```
 
 `--init` checks that the target secrets do not already exist, then runs the same rotation flow as `--rotate-keys`. It fails loudly if secrets are already present to prevent accidental overwrites.
-
-**Redeploy PR preview deployments after rotation** (flushes warm Lambda instances that cached old credentials):
-
-```sh
-sync-env --rotate-keys --refresh-previews
-```
 
 **Preview changes without touching Vercel:**
 
@@ -201,7 +194,7 @@ Reference the reusable workflow from your own workflow file:
 ```yaml
 jobs:
   secret-scan:
-    uses: rmartz/vercel-deploy-scripts/.github/workflows/secret-scan.yml@v2.3.1
+    uses: rmartz/vercel-deploy-scripts/.github/workflows/secret-scan.yml@v2.3.3
 ```
 
 The workflow checks out your repo with full history and runs gitleaks. If a `.gitleaks.toml` exists in your repo root it is picked up automatically. To supply a custom config path:
@@ -209,7 +202,7 @@ The workflow checks out your repo with full history and runs gitleaks. If a `.gi
 ```yaml
 jobs:
   secret-scan:
-    uses: rmartz/vercel-deploy-scripts/.github/workflows/secret-scan.yml@v2.3.1
+    uses: rmartz/vercel-deploy-scripts/.github/workflows/secret-scan.yml@v2.3.3
     with:
       config-path: .github/gitleaks.toml
 ```
