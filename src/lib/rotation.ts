@@ -71,7 +71,14 @@ export async function run(opts: RotationOptions): Promise<void> {
   const client = new VercelClient(token!, project.projectId, project.teamId);
 
   const allEnvs = await client.listEnvVars();
-  const envKeys = allEnvs.envs.map((e) => e.key);
+  // Scope key-existence checks to the specific Vercel target so that
+  // successive per-env --init calls (e.g. preview then production) don't
+  // see secrets created for an earlier target and falsely error.
+  const scopedEnvs =
+    opts.targetEnv === "all"
+      ? allEnvs.envs
+      : allEnvs.envs.filter((e) => e.target.includes(opts.targetEnv));
+  const envKeys = scopedEnvs.map((e) => e.key);
 
   const hasFirebase = envKeys.some((k) =>
     ["FIREBASE_SERVICE_ACCOUNT", "FIREBASE_PRIVATE_KEY"].includes(k),

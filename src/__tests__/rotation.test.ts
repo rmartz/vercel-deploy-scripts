@@ -182,6 +182,37 @@ describe("run — --init guard checks", () => {
     ).rejects.toThrow("already exist");
   });
 
+  it("does not block --init firebase for production when Firebase key exists only on preview", async () => {
+    await setupMocks();
+    process.env.FIREBASE_SA_EMAIL = "sa@my-project.iam.gserviceaccount.com";
+    process.env.GCLOUD_PROJECT = "my-project";
+    const { VercelClient } = await import("../lib/vercel-api");
+    vi.spyOn(VercelClient.prototype, "listEnvVars").mockResolvedValue({
+      envs: [
+        {
+          id: "e1",
+          key: "FIREBASE_SERVICE_ACCOUNT",
+          value: "{}",
+          target: ["preview"],
+          type: "encrypted",
+        },
+      ],
+      pagination: undefined,
+    });
+
+    // Guard passes — the preview-scoped key is invisible to the production check.
+    // The run ultimately fails deeper (gcloud mock writes no key file), but the
+    // error must not be the "already exist" guard.
+    const error = await run({
+      targetEnv: "production",
+      invalidateKeys: true,
+      init: "firebase",
+    }).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).not.toContain("already exist");
+  });
+
   it("throws FatalError when --init firebase and FIREBASE_SA_EMAIL is not set", async () => {
     await setupMocks();
     delete process.env.FIREBASE_SA_EMAIL;
