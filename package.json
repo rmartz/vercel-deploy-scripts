@@ -5,15 +5,13 @@
   "license": "MIT",
   "bin": {
     "generate-local-env": "./scripts/generate-local-env.sh",
-    "init-terraform": "./scripts/init-terraform.sh",
     "secrets-check": "./scripts/secrets-check.sh",
     "sync-env": "./dist/sync-env.js"
   },
   "files": [
     "scripts/",
     "dist/",
-    ".gitleaks.toml",
-    "templates/"
+    ".gitleaks.toml"
   ],
   "packageManager": "pnpm@10.30.3",
   "engines": {
