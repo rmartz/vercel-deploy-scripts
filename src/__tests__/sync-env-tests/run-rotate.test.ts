@@ -676,7 +676,7 @@ describe("run", () => {
 
   // ─── --refresh-previews ───────────────────────────────────────────────────────
 
-  it("--refresh-previews redeплoys each READY preview deployment after rotation", async () => {
+  it("--refresh-previews redeploys each READY preview deployment after rotation", async () => {
     const rotateKeys = await import("../../lib/rotation");
     vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
 
