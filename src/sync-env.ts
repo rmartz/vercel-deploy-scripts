@@ -11,7 +11,7 @@ import { resolveVercelToken } from "./lib/auth";
 import { FatalError, err, log, warn } from "./lib/logger";
 import { detectProject } from "./lib/project";
 import { run as rotateKeysRun } from "./lib/rotation";
-import { VercelClient } from "./lib/vercel-api";
+import { VercelClient, VercelEnvVar } from "./lib/vercel-api";
 
 interface Options {
   targetEnv: string;
@@ -19,7 +19,7 @@ interface Options {
   dryRun: boolean;
   rotateKeys: boolean;
   invalidateKeys: boolean;
-  init?: "all" | "firebase" | "sentry";
+  init?: "all" | "auto" | "firebase" | "sentry";
 }
 
 const USAGE = `Usage: sync-env [OPTIONS]
@@ -41,8 +41,11 @@ OPTIONS:
   --deployment-dir <path>  Path to deployment config directory (default: deployment/)
   --rotate-keys            Also rotate Firebase/Sentry secrets and redeploy
   --init [firebase|sentry] Bootstrap initial secrets for a fresh project (implies
-                           --rotate-keys). Accepts firebase, sentry, or omit for
-                           both. Fails if the chosen secrets already exist.
+                           --rotate-keys). Accepts firebase or sentry to target a
+                           specific service. Omit to auto-detect: initializes only
+                           the services that are missing secrets but have public
+                           config vars present. Fails if the target secrets already
+                           exist.
   --no-invalidate          (with --rotate-keys) Skip deleting old keys after
                            redeployment
   --dry-run                Print what would change without making any API calls
@@ -137,7 +140,7 @@ export function parseArgs(argv: string[]): Options {
         opts.init = next;
         i++;
       } else {
-        opts.init = "all";
+        opts.init = "auto";
       }
       opts.rotateKeys = true;
     } else if (arg === "--no-invalidate") {
@@ -203,6 +206,61 @@ function validateInitConfig(opts: Options, envList: string[]): void {
     );
 }
 
+function resolveAutoInit(
+  envVars: VercelEnvVar[],
+  targetEnv: string,
+): "all" | "firebase" | "sentry" {
+  const relevantTargets =
+    targetEnv === "all" ? ["production", "preview"] : [vercelTarget(targetEnv)];
+  const scoped = envVars.filter((e) =>
+    e.target.some((t) => relevantTargets.includes(t)),
+  );
+  const keys = scoped.map((e) => e.key);
+
+  const hasFirebaseSecrets = keys.some((k) =>
+    ["FIREBASE_SERVICE_ACCOUNT", "FIREBASE_PRIVATE_KEY"].includes(k),
+  );
+  const hasFirebasePublic = keys.some((k) =>
+    [
+      "FIREBASE_PROJECT_ID",
+      "FIREBASE_SA_EMAIL",
+      "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
+    ].includes(k),
+  );
+  const hasSentrySecrets = keys.some((k) =>
+    ["SENTRY_DSN", "NEXT_PUBLIC_SENTRY_DSN"].includes(k),
+  );
+  const hasSentryPublic = keys.some((k) =>
+    ["SENTRY_ORG", "SENTRY_PROJECT"].includes(k),
+  );
+
+  const initFirebase = !hasFirebaseSecrets && hasFirebasePublic;
+  const initSentry = !hasSentrySecrets && hasSentryPublic;
+
+  log("Auto-detecting --init:");
+  if (initFirebase)
+    log(
+      "  Firebase: initialize (no service account found, Firebase public vars present)",
+    );
+  else if (hasFirebaseSecrets)
+    log("  Firebase: skip (service account already configured)");
+  else log("  Firebase: skip (no Firebase public vars configured)");
+
+  if (initSentry)
+    log("  Sentry: initialize (no DSN found, Sentry public vars present)");
+  else if (hasSentrySecrets) log("  Sentry: skip (DSN already configured)");
+  else log("  Sentry: skip (no Sentry public vars configured)");
+
+  if (!initFirebase && !initSentry)
+    err(
+      "--init: nothing to initialize — Firebase and Sentry are either already configured or have no public config vars present in this project",
+    );
+
+  if (initFirebase && initSentry) return "all";
+  if (initFirebase) return "firebase";
+  return "sentry";
+}
+
 function checkPrereqs(opts: Options, token: string | undefined): void {
   if (!token)
     err(
@@ -241,7 +299,7 @@ export async function run(opts: Options): Promise<void> {
     envList = [opts.targetEnv];
   }
 
-  if (opts.init) validateInitConfig(opts, envList);
+  if (opts.init && opts.init !== "auto") validateInitConfig(opts, envList);
 
   if (opts.dryRun) {
     log("Dry run — no changes will be made");
@@ -266,9 +324,11 @@ export async function run(opts: Options): Promise<void> {
     }
     if (opts.rotateKeys)
       log(
-        opts.init
-          ? "Would init secrets (skipped in dry-run)"
-          : "Would rotate keys (skipped in dry-run)",
+        opts.init === "auto"
+          ? "Would auto-detect and initialize missing secrets (skipped in dry-run — requires Vercel API)"
+          : opts.init
+            ? "Would init secrets (skipped in dry-run)"
+            : "Would rotate keys (skipped in dry-run)",
       );
     return;
   }
@@ -276,6 +336,12 @@ export async function run(opts: Options): Promise<void> {
   const client = new VercelClient(token!, project.projectId, project.teamId);
 
   let allEnvs = await client.listEnvVars();
+
+  if (opts.init === "auto") {
+    opts.init = resolveAutoInit(allEnvs.envs, opts.targetEnv);
+    validateInitConfig(opts, envList);
+  }
+
   let totalCreated = 0;
   let totalUpdated = 0;
 

@@ -401,6 +401,371 @@ describe("run", () => {
     );
   });
 
+  // ─── --init auto detection ────────────────────────────────────────────────────
+
+  it("--init auto detects Firebase when public vars present and no secrets", async () => {
+    const rotateKeys = await import("../../lib/rotation");
+    const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
+
+    const { VercelClient } = await import("../../lib/vercel-api");
+    vi.spyOn(VercelClient.prototype, "listEnvVars").mockResolvedValue({
+      envs: [
+        {
+          id: "1",
+          key: "FIREBASE_PROJECT_ID",
+          value: "my-proj",
+          target: ["production"],
+          type: "plain",
+        },
+        {
+          id: "2",
+          key: "FIREBASE_SA_EMAIL",
+          value: "sa@my-proj.iam.gserviceaccount.com",
+          target: ["production"],
+          type: "plain",
+        },
+      ],
+      pagination: undefined,
+    });
+    vi.spyOn(VercelClient.prototype, "findEnvVar").mockReturnValue(undefined);
+    vi.spyOn(VercelClient.prototype, "createEnvVar").mockResolvedValue({
+      id: "x",
+      key: "k",
+      value: "v",
+      target: [],
+      type: "plain",
+    });
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const deployDir = makeDeploymentDir(tmpDir, ["production"], {
+      production: {
+        MY_KEY: "val",
+        FIREBASE_SA_EMAIL: "sa@my-proj.iam.gserviceaccount.com",
+        FIREBASE_PROJECT_ID: "my-proj",
+      },
+    });
+    await run({
+      targetEnv: "all",
+      deploymentDir: deployDir,
+      dryRun: false,
+      rotateKeys: true,
+      invalidateKeys: true,
+      init: "auto",
+    });
+
+    expect(mockRotate).toHaveBeenCalledWith(
+      expect.objectContaining({ init: "firebase" }),
+    );
+    expect(mockRotate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ init: "sentry" }),
+    );
+  });
+
+  it("--init auto detects Sentry when public vars present and no secrets", async () => {
+    const rotateKeys = await import("../../lib/rotation");
+    const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
+
+    const { VercelClient } = await import("../../lib/vercel-api");
+    vi.spyOn(VercelClient.prototype, "listEnvVars").mockResolvedValue({
+      envs: [
+        {
+          id: "1",
+          key: "SENTRY_ORG",
+          value: "my-org",
+          target: ["production"],
+          type: "plain",
+        },
+        {
+          id: "2",
+          key: "SENTRY_PROJECT",
+          value: "my-proj",
+          target: ["production"],
+          type: "plain",
+        },
+      ],
+      pagination: undefined,
+    });
+    vi.spyOn(VercelClient.prototype, "findEnvVar").mockReturnValue(undefined);
+    vi.spyOn(VercelClient.prototype, "createEnvVar").mockResolvedValue({
+      id: "x",
+      key: "k",
+      value: "v",
+      target: [],
+      type: "plain",
+    });
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const deployDir = makeDeploymentDir(tmpDir, ["production"], {
+      production: {
+        MY_KEY: "val",
+        SENTRY_ORG: "my-org",
+        SENTRY_PROJECT: "my-proj",
+      },
+    });
+    await run({
+      targetEnv: "all",
+      deploymentDir: deployDir,
+      dryRun: false,
+      rotateKeys: true,
+      invalidateKeys: true,
+      init: "auto",
+    });
+
+    expect(mockRotate).toHaveBeenCalledWith(
+      expect.objectContaining({ init: "sentry" }),
+    );
+    expect(mockRotate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ init: "firebase" }),
+    );
+  });
+
+  it("--init auto detects both when both public vars present and no secrets", async () => {
+    const rotateKeys = await import("../../lib/rotation");
+    const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
+
+    const { VercelClient } = await import("../../lib/vercel-api");
+    vi.spyOn(VercelClient.prototype, "listEnvVars").mockResolvedValue({
+      envs: [
+        {
+          id: "1",
+          key: "FIREBASE_PROJECT_ID",
+          value: "my-proj",
+          target: ["production"],
+          type: "plain",
+        },
+        {
+          id: "2",
+          key: "FIREBASE_SA_EMAIL",
+          value: "sa@my-proj.iam.gserviceaccount.com",
+          target: ["production"],
+          type: "plain",
+        },
+        {
+          id: "3",
+          key: "SENTRY_ORG",
+          value: "my-org",
+          target: ["production"],
+          type: "plain",
+        },
+        {
+          id: "4",
+          key: "SENTRY_PROJECT",
+          value: "my-sentry-proj",
+          target: ["production"],
+          type: "plain",
+        },
+      ],
+      pagination: undefined,
+    });
+    vi.spyOn(VercelClient.prototype, "findEnvVar").mockReturnValue(undefined);
+    vi.spyOn(VercelClient.prototype, "createEnvVar").mockResolvedValue({
+      id: "x",
+      key: "k",
+      value: "v",
+      target: [],
+      type: "plain",
+    });
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const deployDir = makeDeploymentDir(tmpDir, ["production"], {
+      production: {
+        MY_KEY: "val",
+        FIREBASE_SA_EMAIL: "sa@my-proj.iam.gserviceaccount.com",
+        FIREBASE_PROJECT_ID: "my-proj",
+        SENTRY_ORG: "my-org",
+        SENTRY_PROJECT: "my-sentry-proj",
+      },
+    });
+    await run({
+      targetEnv: "all",
+      deploymentDir: deployDir,
+      dryRun: false,
+      rotateKeys: true,
+      invalidateKeys: true,
+      init: "auto",
+    });
+
+    expect(mockRotate).toHaveBeenCalledWith(
+      expect.objectContaining({ init: "sentry" }),
+    );
+    expect(mockRotate).toHaveBeenCalledWith(
+      expect.objectContaining({ init: "firebase" }),
+    );
+  });
+
+  it("--init auto errors when no public vars present", async () => {
+    const { VercelClient } = await import("../../lib/vercel-api");
+    vi.spyOn(VercelClient.prototype, "listEnvVars").mockResolvedValue({
+      envs: [
+        {
+          id: "1",
+          key: "SOME_OTHER_VAR",
+          value: "val",
+          target: ["production"],
+          type: "plain",
+        },
+      ],
+      pagination: undefined,
+    });
+    vi.spyOn(VercelClient.prototype, "findEnvVar").mockReturnValue(undefined);
+    vi.spyOn(VercelClient.prototype, "createEnvVar").mockResolvedValue({
+      id: "x",
+      key: "k",
+      value: "v",
+      target: [],
+      type: "plain",
+    });
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const deployDir = makeDeploymentDir(tmpDir, ["production"], {
+      production: { MY_KEY: "val" },
+    });
+
+    await expect(
+      run({
+        targetEnv: "all",
+        deploymentDir: deployDir,
+        dryRun: false,
+        rotateKeys: true,
+        invalidateKeys: true,
+        init: "auto",
+      }),
+    ).rejects.toThrow(/nothing to initialize/);
+  });
+
+  it("--init auto skips Firebase when secrets already exist", async () => {
+    const rotateKeys = await import("../../lib/rotation");
+    const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
+
+    const { VercelClient } = await import("../../lib/vercel-api");
+    vi.spyOn(VercelClient.prototype, "listEnvVars").mockResolvedValue({
+      envs: [
+        {
+          id: "1",
+          key: "FIREBASE_SERVICE_ACCOUNT",
+          value: "{}",
+          target: ["production"],
+          type: "encrypted",
+        },
+        {
+          id: "2",
+          key: "SENTRY_ORG",
+          value: "my-org",
+          target: ["production"],
+          type: "plain",
+        },
+        {
+          id: "3",
+          key: "SENTRY_PROJECT",
+          value: "my-proj",
+          target: ["production"],
+          type: "plain",
+        },
+      ],
+      pagination: undefined,
+    });
+    vi.spyOn(VercelClient.prototype, "findEnvVar").mockReturnValue(undefined);
+    vi.spyOn(VercelClient.prototype, "createEnvVar").mockResolvedValue({
+      id: "x",
+      key: "k",
+      value: "v",
+      target: [],
+      type: "plain",
+    });
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const deployDir = makeDeploymentDir(tmpDir, ["production"], {
+      production: {
+        MY_KEY: "val",
+        SENTRY_ORG: "my-org",
+        SENTRY_PROJECT: "my-proj",
+      },
+    });
+    await run({
+      targetEnv: "all",
+      deploymentDir: deployDir,
+      dryRun: false,
+      rotateKeys: true,
+      invalidateKeys: true,
+      init: "auto",
+    });
+
+    expect(mockRotate).toHaveBeenCalledWith(
+      expect.objectContaining({ init: "sentry" }),
+    );
+    expect(mockRotate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ init: "firebase" }),
+    );
+  });
+
+  it("--init auto --env staging ignores production-only secrets when detecting for staging", async () => {
+    const rotateKeys = await import("../../lib/rotation");
+    const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
+
+    const { VercelClient } = await import("../../lib/vercel-api");
+    vi.spyOn(VercelClient.prototype, "listEnvVars").mockResolvedValue({
+      envs: [
+        {
+          id: "1",
+          key: "FIREBASE_SERVICE_ACCOUNT",
+          value: "{}",
+          target: ["production"],
+          type: "encrypted",
+        },
+        {
+          id: "2",
+          key: "FIREBASE_PROJECT_ID",
+          value: "my-staging-proj",
+          target: ["preview"],
+          type: "plain",
+        },
+        {
+          id: "3",
+          key: "FIREBASE_SA_EMAIL",
+          value: "sa@staging.iam.gserviceaccount.com",
+          target: ["preview"],
+          type: "plain",
+        },
+      ],
+      pagination: undefined,
+    });
+    vi.spyOn(VercelClient.prototype, "findEnvVar").mockReturnValue(undefined);
+    vi.spyOn(VercelClient.prototype, "createEnvVar").mockResolvedValue({
+      id: "x",
+      key: "k",
+      value: "v",
+      target: [],
+      type: "plain",
+    });
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const deployDir = makeDeploymentDir(tmpDir, ["staging"], {
+      staging: {
+        MY_KEY: "val",
+        FIREBASE_SA_EMAIL: "sa@staging.iam.gserviceaccount.com",
+        FIREBASE_PROJECT_ID: "my-staging-proj",
+      },
+    });
+    await run({
+      targetEnv: "staging",
+      deploymentDir: deployDir,
+      dryRun: false,
+      rotateKeys: true,
+      invalidateKeys: true,
+      init: "auto",
+    });
+
+    expect(mockRotate).toHaveBeenCalledWith(
+      expect.objectContaining({ init: "firebase" }),
+    );
+  });
+
   it("accepts shell env as fallback for missing YAML firebase vars", async () => {
     process.env.FIREBASE_SA_EMAIL = "sa@fallback.iam.gserviceaccount.com";
     process.env.GCLOUD_PROJECT = "fallback-project";
