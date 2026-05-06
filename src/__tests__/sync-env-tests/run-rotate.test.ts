@@ -224,6 +224,88 @@ describe("run", () => {
     });
   });
 
+  it("--rotate-keys --env development calls rotate with targetEnv development", async () => {
+    const rotateKeys = await import("../../lib/rotation");
+    const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
+
+    const { VercelClient } = await import("../../lib/vercel-api");
+    vi.spyOn(VercelClient.prototype, "listEnvVars").mockResolvedValue({
+      envs: [],
+      pagination: undefined,
+    });
+    vi.spyOn(VercelClient.prototype, "findEnvVar").mockReturnValue(undefined);
+    vi.spyOn(VercelClient.prototype, "createEnvVar").mockResolvedValue({
+      id: "x",
+      key: "k",
+      value: "v",
+      target: [],
+      type: "plain",
+    });
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const deployDir = makeDeploymentDir(tmpDir, ["development"], {
+      development: { MY_KEY: "val" },
+    });
+    await run({
+      targetEnv: "development",
+      deploymentDir: deployDir,
+      dryRun: false,
+      rotateKeys: true,
+      invalidateKeys: true,
+    });
+
+    expect(mockRotate).toHaveBeenCalledWith({
+      targetEnv: "development",
+      invalidateKeys: true,
+    });
+  });
+
+  it("--init sentry --env all reads Sentry vars from development when it is the only active env", async () => {
+    const rotateKeys = await import("../../lib/rotation");
+    const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
+
+    const { VercelClient } = await import("../../lib/vercel-api");
+    vi.spyOn(VercelClient.prototype, "listEnvVars").mockResolvedValue({
+      envs: [],
+      pagination: undefined,
+    });
+    vi.spyOn(VercelClient.prototype, "findEnvVar").mockReturnValue(undefined);
+    vi.spyOn(VercelClient.prototype, "createEnvVar").mockResolvedValue({
+      id: "x",
+      key: "k",
+      value: "v",
+      target: [],
+      type: "plain",
+    });
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const deployDir = makeDeploymentDir(tmpDir, ["development"], {
+      development: {
+        MY_KEY: "dval",
+        SENTRY_ORG: "my-org",
+        SENTRY_PROJECT: "my-proj",
+      },
+    });
+    await run({
+      targetEnv: "all",
+      deploymentDir: deployDir,
+      dryRun: false,
+      rotateKeys: true,
+      invalidateKeys: true,
+      init: "sentry",
+    });
+
+    expect(mockRotate).toHaveBeenCalledWith({
+      targetEnv: "all",
+      invalidateKeys: true,
+      init: "sentry",
+      sentryOrg: "my-org",
+      sentryProject: "my-proj",
+    });
+  });
+
   it("--init sentry --env all calls rotate once with targetEnv all", async () => {
     const rotateKeys = await import("../../lib/rotation");
     const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);

@@ -179,11 +179,9 @@ function validateInitConfig(opts: Options, envList: string[]): void {
   if (needsSentry) {
     const sourceEnv =
       opts.targetEnv === "all"
-        ? envList.find((e) => e !== "development")
+        ? (envList.find((e) => e !== "development") ?? envList[0])
         : opts.targetEnv;
-    const envVars = sourceEnv
-      ? parseDeploymentEnv(opts.deploymentDir, sourceEnv)
-      : {};
+    const envVars = parseDeploymentEnv(opts.deploymentDir, sourceEnv);
 
     if (!envVars.SENTRY_ORG && !process.env.SENTRY_ORG)
       missing.push(
