@@ -166,7 +166,7 @@ describe("run", () => {
     });
   });
 
-  it("--init --env all iterates once per deployment env with per-env YAML values", async () => {
+  it("--init --env all iterates per deployment env with per-env YAML values and also inits development", async () => {
     const rotateKeys = await import("../../lib/rotation");
     const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
 
@@ -207,7 +207,8 @@ describe("run", () => {
       init: "firebase",
     });
 
-    expect(mockRotate).toHaveBeenCalledTimes(2);
+    // production, preview, and development (development uses staging SA)
+    expect(mockRotate).toHaveBeenCalledTimes(3);
     expect(mockRotate).toHaveBeenCalledWith({
       targetEnv: "production",
       invalidateKeys: true,
@@ -217,6 +218,13 @@ describe("run", () => {
     });
     expect(mockRotate).toHaveBeenCalledWith({
       targetEnv: "preview",
+      invalidateKeys: true,
+      init: "firebase",
+      firebaseSaEmail: "sa@staging.iam.gserviceaccount.com",
+      gcpProject: "my-staging",
+    });
+    expect(mockRotate).toHaveBeenCalledWith({
+      targetEnv: "development",
       invalidateKeys: true,
       init: "firebase",
       firebaseSaEmail: "sa@staging.iam.gserviceaccount.com",
@@ -244,8 +252,9 @@ describe("run", () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    const deployDir = makeDeploymentDir(tmpDir, ["development"], {
-      development: { MY_KEY: "val" },
+    // Development is not in environments.yml; it mirrors staging as devSource.
+    const deployDir = makeDeploymentDir(tmpDir, ["staging"], {
+      staging: { MY_KEY: "val" },
     });
     await run({
       targetEnv: "development",
@@ -261,7 +270,7 @@ describe("run", () => {
     });
   });
 
-  it("--init sentry --env all reads Sentry vars from development when it is the only active env", async () => {
+  it("--init sentry --env all reads Sentry vars from the staging devSource", async () => {
     const rotateKeys = await import("../../lib/rotation");
     const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
 
@@ -281,9 +290,9 @@ describe("run", () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    const deployDir = makeDeploymentDir(tmpDir, ["development"], {
-      development: {
-        MY_KEY: "dval",
+    const deployDir = makeDeploymentDir(tmpDir, ["staging"], {
+      staging: {
+        MY_KEY: "sval",
         SENTRY_ORG: "my-org",
         SENTRY_PROJECT: "my-proj",
       },
@@ -357,7 +366,7 @@ describe("run", () => {
     });
   });
 
-  it("--init all --env all calls Sentry once and Firebase per deployment env", async () => {
+  it("--init all --env all calls Sentry once and Firebase for production, preview, and development", async () => {
     const rotateKeys = await import("../../lib/rotation");
     const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
 
@@ -402,7 +411,8 @@ describe("run", () => {
       init: "all",
     });
 
-    expect(mockRotate).toHaveBeenCalledTimes(3);
+    // Sentry once (project-level) + Firebase for production, preview, and development
+    expect(mockRotate).toHaveBeenCalledTimes(4);
     expect(mockRotate).toHaveBeenNthCalledWith(1, {
       targetEnv: "all",
       invalidateKeys: true,
@@ -419,6 +429,13 @@ describe("run", () => {
     });
     expect(mockRotate).toHaveBeenNthCalledWith(3, {
       targetEnv: "preview",
+      invalidateKeys: true,
+      init: "firebase",
+      firebaseSaEmail: "sa@staging.iam.gserviceaccount.com",
+      gcpProject: "my-staging",
+    });
+    expect(mockRotate).toHaveBeenNthCalledWith(4, {
+      targetEnv: "development",
       invalidateKeys: true,
       init: "firebase",
       firebaseSaEmail: "sa@staging.iam.gserviceaccount.com",
@@ -717,7 +734,7 @@ describe("run", () => {
     );
   });
 
-  it("--init firebase --env all includes development target in Firebase init", async () => {
+  it("--init firebase --env all includes development target using staging SA credentials", async () => {
     const rotateKeys = await import("../../lib/rotation");
     const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
 
@@ -737,27 +754,19 @@ describe("run", () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    const deployDir = makeDeploymentDir(
-      tmpDir,
-      ["production", "staging", "development"],
-      {
-        production: {
-          MY_KEY: "pval",
-          FIREBASE_SA_EMAIL: "sa@prod.iam.gserviceaccount.com",
-          FIREBASE_PROJECT_ID: "my-prod",
-        },
-        staging: {
-          MY_KEY: "sval",
-          FIREBASE_SA_EMAIL: "sa@staging.iam.gserviceaccount.com",
-          FIREBASE_PROJECT_ID: "my-staging",
-        },
-        development: {
-          MY_KEY: "dval",
-          FIREBASE_SA_EMAIL: "sa@dev.iam.gserviceaccount.com",
-          FIREBASE_PROJECT_ID: "my-dev",
-        },
+    // Development is not in environments.yml — it mirrors staging automatically.
+    const deployDir = makeDeploymentDir(tmpDir, ["production", "staging"], {
+      production: {
+        MY_KEY: "pval",
+        FIREBASE_SA_EMAIL: "sa@prod.iam.gserviceaccount.com",
+        FIREBASE_PROJECT_ID: "my-prod",
       },
-    );
+      staging: {
+        MY_KEY: "sval",
+        FIREBASE_SA_EMAIL: "sa@staging.iam.gserviceaccount.com",
+        FIREBASE_PROJECT_ID: "my-staging",
+      },
+    });
     await run({
       targetEnv: "all",
       deploymentDir: deployDir,
@@ -784,35 +793,30 @@ describe("run", () => {
         gcpProject: "my-staging",
       }),
     );
+    // Development uses staging SA credentials (shares the same Firebase project)
     expect(mockRotate).toHaveBeenCalledWith(
       expect.objectContaining({
         targetEnv: "development",
         init: "firebase",
-        firebaseSaEmail: "sa@dev.iam.gserviceaccount.com",
-        gcpProject: "my-dev",
+        firebaseSaEmail: "sa@staging.iam.gserviceaccount.com",
+        gcpProject: "my-staging",
       }),
     );
   });
 
-  it("validates Firebase credentials for development env in --init firebase", async () => {
+  it("validates Firebase credentials for development target against staging YAML in --init firebase", async () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    const deployDir = makeDeploymentDir(
-      tmpDir,
-      ["production", "staging", "development"],
-      {
-        production: {
-          FIREBASE_SA_EMAIL: "sa@prod.iam.gserviceaccount.com",
-          FIREBASE_PROJECT_ID: "my-prod",
-        },
-        staging: {
-          FIREBASE_SA_EMAIL: "sa@staging.iam.gserviceaccount.com",
-          FIREBASE_PROJECT_ID: "my-staging",
-        },
-        development: {},
+    // Staging YAML is missing Firebase vars — development credential validation
+    // reads from staging (the devSource) and must report the error under [development].
+    const deployDir = makeDeploymentDir(tmpDir, ["production", "staging"], {
+      production: {
+        FIREBASE_SA_EMAIL: "sa@prod.iam.gserviceaccount.com",
+        FIREBASE_PROJECT_ID: "my-prod",
       },
-    );
+      staging: {},
+    });
 
     await expect(
       run({
@@ -826,7 +830,7 @@ describe("run", () => {
     ).rejects.toThrow(/\[development\]/);
   });
 
-  it("--init auto --env all aggregates detection across all envs including development", async () => {
+  it("--init auto --env development scans devSource (staging) for public vars", async () => {
     const rotateKeys = await import("../../lib/rotation");
     const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
 
@@ -846,14 +850,14 @@ describe("run", () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    // Firebase key present only in development YAML (single-env target) — auto-detect
-    // must scan development to find it
-    const deployDir = makeDeploymentDir(tmpDir, ["development"], {
-      development: {
-        MY_KEY: "dval",
-        NEXT_PUBLIC_FIREBASE_PROJECT_ID: "my-dev",
-        FIREBASE_SA_EMAIL: "sa@dev.iam.gserviceaccount.com",
-        FIREBASE_PROJECT_ID: "my-dev",
+    // Firebase vars are in staging YAML; --init auto with --env development should
+    // detect them via devSource (staging) and init the development target.
+    const deployDir = makeDeploymentDir(tmpDir, ["staging"], {
+      staging: {
+        MY_KEY: "sval",
+        NEXT_PUBLIC_FIREBASE_PROJECT_ID: "my-staging",
+        FIREBASE_SA_EMAIL: "sa@staging.iam.gserviceaccount.com",
+        FIREBASE_PROJECT_ID: "my-staging",
       },
     });
     await run({
@@ -869,8 +873,8 @@ describe("run", () => {
       expect.objectContaining({
         targetEnv: "development",
         init: "firebase",
-        firebaseSaEmail: "sa@dev.iam.gserviceaccount.com",
-        gcpProject: "my-dev",
+        firebaseSaEmail: "sa@staging.iam.gserviceaccount.com",
+        gcpProject: "my-staging",
       }),
     );
   });
