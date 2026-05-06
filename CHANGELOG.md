@@ -1,3 +1,10 @@
+# [2.3.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v2.2.0...v2.3.0) (2026-05-06)
+
+
+### Features
+
+* auto-detect what to initialize when --init is passed without a service argument ([#49](https://github.com/rmartz/vercel-deploy-scripts/issues/49)) ([b693ec1](https://github.com/rmartz/vercel-deploy-scripts/commit/b693ec132a881e4738fee5f1700fb629dfa6e14d)), closes [#48](https://github.com/rmartz/vercel-deploy-scripts/issues/48)
+
 # [2.2.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v2.1.2...v2.2.0) (2026-05-05)
 
 
