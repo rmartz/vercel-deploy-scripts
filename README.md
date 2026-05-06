@@ -72,22 +72,24 @@ One of the following is required:
 
 Project and team IDs are auto-detected from `.vercel/project.json` and can be overridden with `VERCEL_PROJECT_ID` / `VERCEL_TEAM_ID`.
 
+> **Note**: `sync-env` reads `VERCEL_TOKEN`. The bundled Terraform workflow reads `VERCEL_API_TOKEN`. Both hold a Vercel API token — set the right name for each tool.
+
 ### Usage
 
 ```
 sync-env [OPTIONS]
 ```
 
-| Option                      | Description                                                                    |
-| --------------------------- | ------------------------------------------------------------------------------ |
-| `--env <name>`              | Target one environment by name (default: all active environments)              |
-| `--deployment-dir <path>`   | Path to deployment config directory (default: `deployment/`)                   |
-| `--rotate-keys`             | Also rotate Firebase/Sentry secrets and trigger redeployment                   |
-| `--init [firebase\|sentry]` | Bootstrap initial secrets for a fresh project (implies `--rotate-keys`)        |
-| `--no-invalidate`           | With `--rotate-keys`: skip deleting the old keys after redeployment            |
-| `--refresh-previews`        | With `--rotate-keys`: redeploy all READY PR preview deployments after rotation |
-| `--dry-run`                 | Print what would change without making any API calls                           |
-| `-h`, `--help`              | Show help                                                                      |
+| Option                        | Description                                                                    |
+| ----------------------------- | ------------------------------------------------------------------------------ |
+| `--env <name>`                | Target one environment by name (default: all active environments)              |
+| `--deployment-dir <path>`     | Path to deployment config directory (default: `deployment/`)                   |
+| `--rotate-keys`               | Also rotate Firebase/Sentry secrets and trigger redeployment                   |
+| `--init [firebase or sentry]` | Bootstrap initial secrets for a fresh project (implies `--rotate-keys`)        |
+| `--no-invalidate`             | With `--rotate-keys`: skip deleting the old keys after redeployment            |
+| `--refresh-previews`          | With `--rotate-keys`: redeploy all READY PR preview deployments after rotation |
+| `--dry-run`                   | Print what would change without making any API calls                           |
+| `-h`, `--help`                | Show help                                                                      |
 
 ### Common workflows
 
@@ -141,7 +143,7 @@ sync-env --dry-run
 | `SENTRY_ORG`        | `SENTRY_ORG` key in the deployment YAML, or shell environment     |
 | `SENTRY_PROJECT`    | `SENTRY_PROJECT` key in the deployment YAML, or shell environment |
 
-Firebase variables (`FIREBASE_PROJECT_ID`, `FIREBASE_SA_EMAIL`) are read from the deployment YAML automatically. `GCLOUD_PROJECT` / `FIREBASE_SA_EMAIL` can be set in the shell as fallbacks, and are required for `--init firebase`.
+Firebase project and service account details are read from the deployment YAML (`FIREBASE_PROJECT_ID` and `FIREBASE_SA_EMAIL` keys). For `--init firebase`, where no YAML exists yet, set `GCLOUD_PROJECT` (the GCP project ID) and `FIREBASE_SA_EMAIL` in the shell — these are the shell-side equivalents of the YAML keys.
 
 ### Development environment exception
 
@@ -199,7 +201,7 @@ Reference the reusable workflow from your own workflow file:
 ```yaml
 jobs:
   secret-scan:
-    uses: rmartz/vercel-deploy-scripts/.github/workflows/secret-scan.yml@v2
+    uses: rmartz/vercel-deploy-scripts/.github/workflows/secret-scan.yml@v2.3.1
 ```
 
 The workflow checks out your repo with full history and runs gitleaks. If a `.gitleaks.toml` exists in your repo root it is picked up automatically. To supply a custom config path:
@@ -207,7 +209,7 @@ The workflow checks out your repo with full history and runs gitleaks. If a `.gi
 ```yaml
 jobs:
   secret-scan:
-    uses: rmartz/vercel-deploy-scripts/.github/workflows/secret-scan.yml@v2
+    uses: rmartz/vercel-deploy-scripts/.github/workflows/secret-scan.yml@v2.3.1
     with:
       config-path: .github/gitleaks.toml
 ```
@@ -236,7 +238,7 @@ The script is idempotent — it warns and skips any destination that already exi
 After running it:
 
 1. Copy `terraform/terraform.tfvars.example` → `terraform/terraform.tfvars` and fill in `vercel_project_id` (and optionally `vercel_team_id`).
-2. Add `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID` (if applicable), and `VERCEL_API_TOKEN` to your GitHub Actions secrets.
+2. Add `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID` (if applicable), and `VERCEL_API_TOKEN` to your GitHub Actions secrets. Note: the Terraform workflow uses `VERCEL_API_TOKEN`, while `sync-env` uses `VERCEL_TOKEN` — both hold a Vercel API token but must be set under the correct name for each tool.
 3. Run `cd terraform && terraform init`.
 
 ### CI workflow
