@@ -1,3 +1,10 @@
+## [2.3.1](https://github.com/rmartz/vercel-deploy-scripts/compare/v2.3.0...v2.3.1) (2026-05-06)
+
+
+### Bug Fixes
+
+* scope --init key-existence check to the specific Vercel target ([#51](https://github.com/rmartz/vercel-deploy-scripts/issues/51)) ([f76dafd](https://github.com/rmartz/vercel-deploy-scripts/commit/f76dafda8c514fa4ba890401762444293ad6e78f))
+
 # [2.3.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v2.2.0...v2.3.0) (2026-05-06)
 
 
