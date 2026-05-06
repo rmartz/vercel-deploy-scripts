@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { run } from "../../sync-env";
 import { makeDeploymentDir } from "../fixtures";
 
-// ─── run — development env skip ───────────────────────────────────────────────
+// ─── run — development env sync ───────────────────────────────────────────────
 
 describe("run", () => {
   let tmpDir: string;
@@ -27,15 +27,20 @@ describe("run", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("skips public var sync for development when rotateKeys is true", async () => {
+  it("syncs public vars for development even when rotateKeys is true", async () => {
     const { VercelClient } = await import("../../lib/vercel-api");
-    const mockListEnvVars = vi
-      .fn()
-      .mockResolvedValue({ envs: [], pagination: undefined });
-    const mockCreateEnvVar = vi.fn();
-    vi.spyOn(VercelClient.prototype, "listEnvVars").mockImplementation(
-      mockListEnvVars,
-    );
+    vi.spyOn(VercelClient.prototype, "listEnvVars").mockResolvedValue({
+      envs: [],
+      pagination: undefined,
+    });
+    vi.spyOn(VercelClient.prototype, "findEnvVar").mockReturnValue(undefined);
+    const mockCreateEnvVar = vi.fn().mockResolvedValue({
+      id: "x",
+      key: "k",
+      value: "v",
+      target: [],
+      type: "plain",
+    });
     vi.spyOn(VercelClient.prototype, "createEnvVar").mockImplementation(
       mockCreateEnvVar,
     );
@@ -56,10 +61,15 @@ describe("run", () => {
       invalidateKeys: true,
     });
 
-    expect(mockCreateEnvVar).not.toHaveBeenCalled();
+    expect(mockCreateEnvVar).toHaveBeenCalledWith(
+      "DEV_KEY",
+      "val",
+      "development",
+      "plain",
+    );
   });
 
-  it("does not skip development sync when rotateKeys is false", async () => {
+  it("syncs public vars for development when rotateKeys is false", async () => {
     const { VercelClient } = await import("../../lib/vercel-api");
     vi.spyOn(VercelClient.prototype, "listEnvVars").mockResolvedValue({
       envs: [],
@@ -98,7 +108,7 @@ describe("run", () => {
     );
   });
 
-  it("dry run logs development skip message when rotateKeys is true", async () => {
+  it("dry run includes development vars in sync output", async () => {
     const logs: string[] = [];
     vi.spyOn(console, "log").mockImplementation((msg: string) =>
       logs.push(msg),
@@ -116,8 +126,7 @@ describe("run", () => {
       invalidateKeys: true,
     });
 
-    expect(
-      logs.some((l) => l.includes("development") && l.includes("skip")),
-    ).toBe(true);
+    expect(logs.some((l) => l.includes("development"))).toBe(true);
+    expect(logs.some((l) => l.includes("DEV_KEY"))).toBe(true);
   });
 });

@@ -635,6 +635,164 @@ describe("run", () => {
     );
   });
 
+  it("--init firebase --env all includes development target in Firebase init", async () => {
+    const rotateKeys = await import("../../lib/rotation");
+    const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
+
+    const { VercelClient } = await import("../../lib/vercel-api");
+    vi.spyOn(VercelClient.prototype, "listEnvVars").mockResolvedValue({
+      envs: [],
+      pagination: undefined,
+    });
+    vi.spyOn(VercelClient.prototype, "findEnvVar").mockReturnValue(undefined);
+    vi.spyOn(VercelClient.prototype, "createEnvVar").mockResolvedValue({
+      id: "x",
+      key: "k",
+      value: "v",
+      target: [],
+      type: "plain",
+    });
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const deployDir = makeDeploymentDir(
+      tmpDir,
+      ["production", "staging", "development"],
+      {
+        production: {
+          MY_KEY: "pval",
+          FIREBASE_SA_EMAIL: "sa@prod.iam.gserviceaccount.com",
+          FIREBASE_PROJECT_ID: "my-prod",
+        },
+        staging: {
+          MY_KEY: "sval",
+          FIREBASE_SA_EMAIL: "sa@staging.iam.gserviceaccount.com",
+          FIREBASE_PROJECT_ID: "my-staging",
+        },
+        development: {
+          MY_KEY: "dval",
+          FIREBASE_SA_EMAIL: "sa@dev.iam.gserviceaccount.com",
+          FIREBASE_PROJECT_ID: "my-dev",
+        },
+      },
+    );
+    await run({
+      targetEnv: "all",
+      deploymentDir: deployDir,
+      dryRun: false,
+      rotateKeys: true,
+      invalidateKeys: true,
+      init: "firebase",
+    });
+
+    expect(mockRotate).toHaveBeenCalledTimes(3);
+    expect(mockRotate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        targetEnv: "production",
+        init: "firebase",
+        firebaseSaEmail: "sa@prod.iam.gserviceaccount.com",
+        gcpProject: "my-prod",
+      }),
+    );
+    expect(mockRotate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        targetEnv: "preview",
+        init: "firebase",
+        firebaseSaEmail: "sa@staging.iam.gserviceaccount.com",
+        gcpProject: "my-staging",
+      }),
+    );
+    expect(mockRotate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        targetEnv: "development",
+        init: "firebase",
+        firebaseSaEmail: "sa@dev.iam.gserviceaccount.com",
+        gcpProject: "my-dev",
+      }),
+    );
+  });
+
+  it("validates Firebase credentials for development env in --init firebase", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const deployDir = makeDeploymentDir(
+      tmpDir,
+      ["production", "staging", "development"],
+      {
+        production: {
+          FIREBASE_SA_EMAIL: "sa@prod.iam.gserviceaccount.com",
+          FIREBASE_PROJECT_ID: "my-prod",
+        },
+        staging: {
+          FIREBASE_SA_EMAIL: "sa@staging.iam.gserviceaccount.com",
+          FIREBASE_PROJECT_ID: "my-staging",
+        },
+        development: {},
+      },
+    );
+
+    await expect(
+      run({
+        targetEnv: "all",
+        deploymentDir: deployDir,
+        dryRun: false,
+        rotateKeys: true,
+        invalidateKeys: true,
+        init: "firebase",
+      }),
+    ).rejects.toThrow(/\[development\]/);
+  });
+
+  it("--init auto --env all aggregates detection across all envs including development", async () => {
+    const rotateKeys = await import("../../lib/rotation");
+    const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
+
+    const { VercelClient } = await import("../../lib/vercel-api");
+    vi.spyOn(VercelClient.prototype, "listEnvVars").mockResolvedValue({
+      envs: [],
+      pagination: undefined,
+    });
+    vi.spyOn(VercelClient.prototype, "findEnvVar").mockReturnValue(undefined);
+    vi.spyOn(VercelClient.prototype, "createEnvVar").mockResolvedValue({
+      id: "x",
+      key: "k",
+      value: "v",
+      target: [],
+      type: "plain",
+    });
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    // Firebase key present only in development YAML (single-env target) — auto-detect
+    // must scan development to find it
+    const deployDir = makeDeploymentDir(tmpDir, ["development"], {
+      development: {
+        MY_KEY: "dval",
+        NEXT_PUBLIC_FIREBASE_PROJECT_ID: "my-dev",
+        FIREBASE_SA_EMAIL: "sa@dev.iam.gserviceaccount.com",
+        FIREBASE_PROJECT_ID: "my-dev",
+      },
+    });
+    await run({
+      targetEnv: "development",
+      deploymentDir: deployDir,
+      dryRun: false,
+      rotateKeys: true,
+      invalidateKeys: true,
+      init: "auto",
+    });
+
+    expect(mockRotate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        targetEnv: "development",
+        init: "firebase",
+        firebaseSaEmail: "sa@dev.iam.gserviceaccount.com",
+        gcpProject: "my-dev",
+      }),
+    );
+  });
+
   it("accepts shell env as fallback for missing YAML firebase vars", async () => {
     process.env.FIREBASE_SA_EMAIL = "sa@fallback.iam.gserviceaccount.com";
     process.env.GCLOUD_PROJECT = "fallback-project";
