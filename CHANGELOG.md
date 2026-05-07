@@ -1,3 +1,10 @@
+# [3.1.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v3.0.0...v3.1.0) (2026-05-07)
+
+
+### Features
+
+* include development env in public var sync and --init firebase ([#57](https://github.com/rmartz/vercel-deploy-scripts/issues/57)) ([367d561](https://github.com/rmartz/vercel-deploy-scripts/commit/367d561a51bc9585b60540dc552cc76dfeaa9c33))
+
 # [3.0.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v2.4.0...v3.0.0) (2026-05-07)
 
 
