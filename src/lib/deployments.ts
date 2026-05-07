@@ -54,3 +54,30 @@ export async function triggerAndWaitRedeployments(
 
   log("All deployments ready.");
 }
+
+export async function refreshPreviewDeployments(
+  client: VercelClient,
+): Promise<void> {
+  const previews = await client.listPreviewDeployments();
+  if (previews.length === 0) {
+    log("No active preview deployments found — skipping preview refresh.");
+    return;
+  }
+  log(`Refreshing ${previews.length} active preview deployment(s)...`);
+
+  const newIds: string[] = [];
+  for (const preview of previews) {
+    log(`  Redeploying ${preview.url}...`);
+    const newId = await client.triggerRedeployment(preview.uid, preview.name);
+    newIds.push(newId);
+    log(`  Queued: ${newId}`);
+  }
+
+  log(`Waiting for ${newIds.length} preview deployment(s) to finish...`);
+  for (const id of newIds) {
+    log(`  Polling ${id}...`);
+    await client.pollDeploymentStatus(id, 60, 10_000);
+    log(`  ${id} → READY`);
+  }
+  log("Preview deployments refreshed.");
+}

@@ -10,6 +10,7 @@ import {
 import { resolveVercelToken } from "./lib/auth";
 import { FatalError, err, log, warn } from "./lib/logger";
 import { detectProject } from "./lib/project";
+import { refreshPreviewDeployments } from "./lib/deployments";
 import { run as rotateKeysRun } from "./lib/rotation";
 import { VercelClient } from "./lib/vercel-api";
 
@@ -19,6 +20,7 @@ interface Options {
   dryRun: boolean;
   rotateKeys: boolean;
   invalidateKeys: boolean;
+  refreshPreviews?: boolean;
   init?: "all" | "auto" | "firebase" | "sentry";
 }
 
@@ -59,6 +61,11 @@ OPTIONS:
                            independently.
   --no-invalidate          (with --rotate-keys) Skip deleting old keys after
                            redeployment
+  --refresh-previews       (with --rotate-keys) After rotation completes,
+                           redeploy all READY PR preview deployments so their
+                           warm Lambda instances pick up the new credentials.
+                           Preview deployments are never redeployed automatically
+                           when env vars change; this flag forces a refresh.
   --dry-run                Print what would change without making any API calls
   -h, --help               Show this help
 
@@ -125,6 +132,7 @@ export function parseArgs(argv: string[]): Options {
     dryRun: false,
     rotateKeys: false,
     invalidateKeys: true,
+    refreshPreviews: false,
     init: undefined,
   };
   const args = argv.slice(2);
@@ -153,6 +161,8 @@ export function parseArgs(argv: string[]): Options {
       opts.rotateKeys = true;
     } else if (arg === "--no-invalidate") {
       opts.invalidateKeys = false;
+    } else if (arg === "--refresh-previews") {
+      opts.refreshPreviews = true;
     } else if (arg === "-h" || arg === "--help") {
       console.log(USAGE);
       process.exit(0);
@@ -552,6 +562,10 @@ export async function run(opts: Options): Promise<void> {
         sentryOrg: envVars.SENTRY_ORG || undefined,
         sentryProject: envVars.SENTRY_PROJECT || undefined,
       });
+    }
+
+    if (opts.refreshPreviews === true) {
+      await refreshPreviewDeployments(client);
     }
   }
 }
