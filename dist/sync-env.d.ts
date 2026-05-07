@@ -5,6 +5,7 @@ interface Options {
     dryRun: boolean;
     rotateKeys: boolean;
     invalidateKeys: boolean;
+    refreshPreviews?: boolean;
     init?: "all" | "auto" | "firebase" | "sentry";
 }
 export declare function parseArgs(argv: string[]): Options;
