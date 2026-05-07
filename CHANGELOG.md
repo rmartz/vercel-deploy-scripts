@@ -1,3 +1,15 @@
+# [3.0.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v2.4.0...v3.0.0) (2026-05-07)
+
+
+### chore
+
+* remove Terraform template and init-terraform script ([#56](https://github.com/rmartz/vercel-deploy-scripts/issues/56)) ([40cc1ec](https://github.com/rmartz/vercel-deploy-scripts/commit/40cc1ec4ab8ce310a799dbc0c038d8cd395dd461))
+
+
+### BREAKING CHANGES
+
+* remove Terraform template and init-terraform script (#56)
+
 # [2.4.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v2.3.3...v2.4.0) (2026-05-07)
 
 
