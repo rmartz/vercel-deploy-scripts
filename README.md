@@ -16,16 +16,13 @@ Then run `pnpm install` (or `npm install` / `yarn`).
 
 ## What's included
 
-| Tool / Asset                             | Purpose                                                                    |
-| ---------------------------------------- | -------------------------------------------------------------------------- |
-| `sync-env` CLI                           | Sync public env vars and rotate Firebase/Sentry secrets to Vercel          |
-| `generate-local-env`                     | Pull `.env.local` from your Vercel preview environment                     |
-| `secrets-check`                          | Pre-commit gitleaks wrapper; skips gracefully if gitleaks is not installed |
-| `init-terraform`                         | Copy the bundled Terraform template into a consuming repo                  |
-| `.gitleaks.toml`                         | Base gitleaks config for consuming repos to extend                         |
-| `.github/workflows/secret-scan.yml`      | Reusable GitHub Actions workflow for CI secret scanning                    |
-| `templates/terraform/`                   | Terraform config for managing Vercel env vars from YAML files              |
-| `templates/workflows/terraform-plan.yml` | Companion GitHub Actions workflow for Terraform validate/plan              |
+| Tool / Asset                        | Purpose                                                                    |
+| ----------------------------------- | -------------------------------------------------------------------------- |
+| `sync-env` CLI                      | Sync public env vars and rotate Firebase/Sentry secrets to Vercel          |
+| `generate-local-env`                | Pull `.env.local` from your Vercel preview environment                     |
+| `secrets-check`                     | Pre-commit gitleaks wrapper; skips gracefully if gitleaks is not installed |
+| `.gitleaks.toml`                    | Base gitleaks config for consuming repos to extend                         |
+| `.github/workflows/secret-scan.yml` | Reusable GitHub Actions workflow for CI secret scanning                    |
 
 ---
 
@@ -71,8 +68,6 @@ One of the following is required:
 - Vercel CLI auth file (`vercel login`) — read automatically when `VERCEL_TOKEN` is not set
 
 Project and team IDs are auto-detected from `.vercel/project.json` and can be overridden with `VERCEL_PROJECT_ID` / `VERCEL_TEAM_ID`.
-
-> **Note**: `sync-env` reads `VERCEL_TOKEN`. The bundled Terraform workflow reads `VERCEL_API_TOKEN`. Both hold a Vercel API token — set the right name for each tool.
 
 ### Usage
 
@@ -209,47 +204,8 @@ jobs:
 
 ---
 
-## Terraform environment variable management
-
-`templates/terraform/` contains a ready-to-use Terraform configuration that manages Vercel environment variables from the same `deployment/` YAML files that `sync-env` reads. It creates `vercel_project_environment_variable` resources for every non-empty value and maps `staging → preview` for the Vercel target.
-
-### Initialize a consuming repo
-
-Run once after installing this package:
-
-```sh
-npx init-terraform
-```
-
-This copies:
-
-- `node_modules/vercel-deploy-scripts/templates/terraform/` → `terraform/`
-- `node_modules/vercel-deploy-scripts/templates/workflows/terraform-plan.yml` → `.github/workflows/terraform-plan.yml`
-
-The script is idempotent — it warns and skips any destination that already exists.
-
-After running it:
-
-1. Copy `terraform/terraform.tfvars.example` → `terraform/terraform.tfvars` and fill in `vercel_project_id` (and optionally `vercel_team_id`).
-2. Add `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID` (if applicable), and `VERCEL_API_TOKEN` to your GitHub Actions secrets. Note: the Terraform workflow uses `VERCEL_API_TOKEN`, while `sync-env` uses `VERCEL_TOKEN` — both hold a Vercel API token but must be set under the correct name for each tool.
-3. Run `cd terraform && terraform init`.
-
-### CI workflow
-
-`init-terraform` copies `terraform-plan.yml` to `.github/workflows/terraform-plan.yml`. It triggers on pull requests to the default branch:
-
-- Every PR: `terraform validate` runs unconditionally to catch syntax errors.
-- `terraform plan` runs only when `VERCEL_API_TOKEN` is present, so forks are not blocked.
-
-### State management
-
-By default Terraform stores state locally in `terraform/terraform.tfstate`. For team use, uncomment one of the remote backend blocks in the copied `main.tf` and run `terraform init -migrate-state`.
-
----
-
 ## Peer requirements
 
 - Node.js ≥ 18
 - [Vercel CLI](https://vercel.com/docs/cli) (for `generate-local-env`)
 - [gitleaks](https://github.com/gitleaks/gitleaks) (for `secrets-check`; optional locally, enforced in CI)
-- [Terraform CLI](https://developer.hashicorp.com/terraform/install) ≥ 1.0 (for the Terraform template; not required for `sync-env`)
