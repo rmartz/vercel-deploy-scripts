@@ -1,3 +1,10 @@
+# [2.4.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v2.3.3...v2.4.0) (2026-05-07)
+
+
+### Features
+
+* add --refresh-previews flag to redeploy PR preview deployments after key rotation ([#53](https://github.com/rmartz/vercel-deploy-scripts/issues/53)) ([67bdd90](https://github.com/rmartz/vercel-deploy-scripts/commit/67bdd90ff59c635bbbff950184a936cc8e594e43))
+
 ## [2.3.3](https://github.com/rmartz/vercel-deploy-scripts/compare/v2.3.2...v2.3.3) (2026-05-06)
 
 

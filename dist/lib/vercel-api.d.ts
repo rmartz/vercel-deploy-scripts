@@ -36,7 +36,8 @@ export declare class VercelClient {
     findEnvVar(envs: VercelEnvVar[], key: string, target: string): VercelEnvVar | undefined;
     setEnvForTarget(key: string, value: string, target: string, allEnvs: VercelEnvVar[], type?: "plain" | "encrypted"): Promise<string>;
     getLatestDeployment(target: "production" | "staging"): Promise<VercelDeployment | null>;
-    triggerRedeployment(deploymentId: string, name: string, target: string): Promise<string>;
+    triggerRedeployment(deploymentId: string, name: string, target?: string): Promise<string>;
+    listPreviewDeployments(): Promise<VercelDeployment[]>;
     pollDeploymentStatus(deploymentId: string, maxAttempts?: number, intervalMs?: number): Promise<void>;
 }
 //# sourceMappingURL=vercel-api.d.ts.map
