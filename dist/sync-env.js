@@ -42,6 +42,7 @@ const environments_1 = require("./lib/environments");
 const auth_1 = require("./lib/auth");
 const logger_1 = require("./lib/logger");
 const project_1 = require("./lib/project");
+const deployments_1 = require("./lib/deployments");
 const rotation_1 = require("./lib/rotation");
 const vercel_api_1 = require("./lib/vercel-api");
 const USAGE = `Usage: sync-env [OPTIONS]
@@ -70,6 +71,11 @@ OPTIONS:
                            exist.
   --no-invalidate          (with --rotate-keys) Skip deleting old keys after
                            redeployment
+  --refresh-previews       (with --rotate-keys) After rotation completes,
+                           redeploy all READY PR preview deployments so their
+                           warm Lambda instances pick up the new credentials.
+                           Preview deployments are never redeployed automatically
+                           when env vars change; this flag forces a refresh.
   --dry-run                Print what would change without making any API calls
   -h, --help               Show this help
 
@@ -138,6 +144,7 @@ function parseArgs(argv) {
         dryRun: false,
         rotateKeys: false,
         invalidateKeys: true,
+        refreshPreviews: false,
         init: undefined,
     };
     const args = argv.slice(2);
@@ -173,6 +180,9 @@ function parseArgs(argv) {
         }
         else if (arg === "--no-invalidate") {
             opts.invalidateKeys = false;
+        }
+        else if (arg === "--refresh-previews") {
+            opts.refreshPreviews = true;
         }
         else if (arg === "-h" || arg === "--help") {
             console.log(USAGE);
@@ -395,6 +405,9 @@ async function run(opts) {
                 sentryOrg: envVars.SENTRY_ORG || undefined,
                 sentryProject: envVars.SENTRY_PROJECT || undefined,
             });
+        }
+        if (opts.refreshPreviews === true) {
+            await (0, deployments_1.refreshPreviewDeployments)(client);
         }
     }
 }
