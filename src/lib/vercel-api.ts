@@ -165,18 +165,35 @@ export class VercelClient {
   async triggerRedeployment(
     deploymentId: string,
     name: string,
-    target: string,
+    target?: string,
   ): Promise<string> {
+    const body: Record<string, string> = { deploymentId, name };
+    if (target !== undefined) body.target = target;
     const result = await this.request<{ id: string }>(
       "/v13/deployments",
       "POST",
-      {
-        deploymentId,
-        name,
-        target,
-      },
+      body,
     );
     return result.id;
+  }
+
+  async listPreviewDeployments(): Promise<VercelDeployment[]> {
+    const url = new URL(`${this.baseUrl}/v6/deployments`);
+    url.searchParams.set("projectId", this.projectId);
+    url.searchParams.set("state", "READY");
+    url.searchParams.set("limit", "50");
+    if (this.teamId) url.searchParams.set("teamId", this.teamId);
+
+    const res = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${this.token}` },
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as {
+      deployments: (VercelDeployment & { target: string | null })[];
+    };
+    // PR preview deployments have target === null; production and aliased
+    // preview (staging) deployments have an explicit target string.
+    return data.deployments.filter((d) => d.target === null);
   }
 
   async pollDeploymentStatus(

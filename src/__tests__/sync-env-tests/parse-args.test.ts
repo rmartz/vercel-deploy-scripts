@@ -14,6 +14,7 @@ describe("parseArgs", () => {
       dryRun: false,
       rotateKeys: false,
       invalidateKeys: true,
+      refreshPreviews: false,
       init: undefined,
     });
   });
