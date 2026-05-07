@@ -27,19 +27,28 @@ interface Options {
 const USAGE = `Usage: sync-env [OPTIONS]
 
 Upsert public (non-secret) environment variables to a Vercel project from
-Terraform deployment configuration files. Reads the list of active environments
-from deployment/environments.yml and per-environment values from
-deployment/{env}.yml, using the same source of truth as Terraform.
+deployment configuration files. Reads the list of active environments from
+deployment/environments.yml and per-environment values from
+deployment/{env}.yml.
+
+The development Vercel target is always populated automatically from the same
+YAML source as the staging/preview environment. It does not appear in
+environments.yml and has no dedicated YAML file; its only distinct resource
+is its own Firebase service account key (rotated independently of preview).
 
 Existing variables are updated in place; missing ones are created as plain-type
 records. Variables not present in the config files are left untouched.
 
 Pass --rotate-keys to also rotate Firebase and Sentry secrets in the same pass,
-triggering a single redeployment after both steps complete.
+triggering a redeployment for production/preview after both steps complete.
+Development is included in all operations but has no remote deployment to
+redeploy — after syncing, developers run 'vercel env pull' to update .env.local.
 
 OPTIONS:
   --env <name>             Target a specific environment by name as listed in
-                           environments.yml (default: all active environments)
+                           environments.yml, or 'development' for the implicit
+                           development target (default: all active environments
+                           plus development)
   --deployment-dir <path>  Path to deployment config directory (default: deployment/)
   --rotate-keys            Also rotate Firebase/Sentry secrets and redeploy
   --init [firebase|sentry] Bootstrap initial secrets for a fresh project (implies
@@ -47,7 +56,9 @@ OPTIONS:
                            specific service. Omit to auto-detect: initializes only
                            the services that are missing secrets but have public
                            config vars present. Fails if the target secrets already
-                           exist.
+                           exist. Each environment (including development) gets its
+                           own distinct Firebase key so they can be rotated
+                           independently.
   --no-invalidate          (with --rotate-keys) Skip deleting old keys after
                            redeployment
   --refresh-previews       (with --rotate-keys) After rotation completes,
@@ -84,32 +95,29 @@ or empty.
   FIREBASE_SA_EMAIL  Firebase service account email for --init firebase
                      (FIREBASE_SA_EMAIL in YAML or shell)
 
-ENVIRONMENT MAPPING (matches Terraform target_map):
+ENVIRONMENT MAPPING:
   production  → production (Vercel target)
   staging     → preview   (Vercel target)
   preview     → preview   (Vercel target)
-  development → development (Vercel target)
+  development → development (Vercel target, implicit — mirrors staging/preview)
   <other>     → passed through as-is
-
-DEVELOPMENT EXCEPTION (--rotate-keys only):
-  When --rotate-keys is set, the public var sync step is skipped for
-  development environments. Development vars are managed locally via
-  generate-local-env and development targets have no canonical Vercel
-  deployment to redeploy. Key rotation still runs.
 
 DEPLOYMENT DIRECTORY LAYOUT:
   deployment/
     environments.yml   # active: [production, staging, ...]
     production.yml     # KEY: value pairs for production
-    staging.yml        # KEY: value pairs for staging
+    staging.yml        # KEY: value pairs for staging/preview AND development
     ...
 
 EXAMPLES:
-  # Sync all active environments
+  # Sync all active environments (including development from staging)
   sync-env
 
-  # Sync only the staging environment
+  # Sync only the staging environment (not development)
   sync-env --env staging
+
+  # Sync only the development target (sources vars from staging)
+  sync-env --env development
 
   # Sync public vars AND rotate secrets in one pass
   sync-env --rotate-keys --env production
@@ -166,19 +174,30 @@ export function parseArgs(argv: string[]): Options {
   return opts;
 }
 
-function validateInitConfig(opts: Options, envList: string[]): void {
+// Returns the first active env whose Vercel target is "preview" (i.e. staging).
+// Development always mirrors this source for public vars and Firebase SA credentials.
+function findDevSource(activeEnvs: string[]): string | undefined {
+  return activeEnvs.find((e) => vercelTarget(e) === "preview");
+}
+
+function validateInitConfig(
+  opts: Options,
+  envList: string[],
+  devSource: string | undefined,
+): void {
   const needsFirebase = opts.init === "firebase" || opts.init === "all";
   const needsSentry = opts.init === "sentry" || opts.init === "all";
 
   const missing: string[] = [];
 
   if (needsFirebase) {
-    const targets =
-      opts.targetEnv === "all"
-        ? envList.filter((e) => e !== "development")
+    // Validate active envs (not development — it uses devSource credentials)
+    const activeTargets =
+      opts.targetEnv === "all" || opts.targetEnv === "development"
+        ? envList
         : [opts.targetEnv];
 
-    for (const envName of targets) {
+    for (const envName of activeTargets) {
       const envVars = parseDeploymentEnv(opts.deploymentDir, envName);
       if (!envVars.FIREBASE_SA_EMAIL && !process.env.FIREBASE_SA_EMAIL)
         missing.push(
@@ -189,25 +208,46 @@ function validateInitConfig(opts: Options, envList: string[]): void {
           `FIREBASE_PROJECT_ID [${envName}]: add to deployment/${envName}.yml or export GCLOUD_PROJECT in shell`,
         );
     }
+
+    // Validate development credentials (sourced from devSource, i.e. staging)
+    const includesDev =
+      opts.targetEnv === "all" || opts.targetEnv === "development";
+    if (includesDev && devSource) {
+      const envVars = parseDeploymentEnv(opts.deploymentDir, devSource);
+      if (!envVars.FIREBASE_SA_EMAIL && !process.env.FIREBASE_SA_EMAIL)
+        missing.push(
+          `FIREBASE_SA_EMAIL [development]: add to deployment/${devSource}.yml or export in shell`,
+        );
+      if (!envVars.FIREBASE_PROJECT_ID && !process.env.GCLOUD_PROJECT)
+        missing.push(
+          `FIREBASE_PROJECT_ID [development]: add to deployment/${devSource}.yml or export GCLOUD_PROJECT in shell`,
+        );
+    }
   }
 
   if (needsSentry) {
-    const sourceEnv =
+    const sentrySourceEnv =
       opts.targetEnv === "all"
-        ? envList.find((e) => e !== "development")
-        : opts.targetEnv;
-    const envVars = sourceEnv
-      ? parseDeploymentEnv(opts.deploymentDir, sourceEnv)
-      : {};
+        ? (envList.find((e) => e !== "development") ?? envList[0])
+        : opts.targetEnv === "development"
+          ? devSource
+          : opts.targetEnv;
 
-    if (!envVars.SENTRY_ORG && !process.env.SENTRY_ORG)
+    if (!sentrySourceEnv) {
       missing.push(
-        `SENTRY_ORG [${sourceEnv ?? envList[0]}]: add to deployment YAML or export in shell`,
+        `Sentry configuration: no preview/staging environment found — add staging to environments.yml`,
       );
-    if (!envVars.SENTRY_PROJECT && !process.env.SENTRY_PROJECT)
-      missing.push(
-        `SENTRY_PROJECT [${sourceEnv ?? envList[0]}]: add to deployment YAML or export in shell`,
-      );
+    } else {
+      const envVars = parseDeploymentEnv(opts.deploymentDir, sentrySourceEnv);
+      if (!envVars.SENTRY_ORG && !process.env.SENTRY_ORG)
+        missing.push(
+          `SENTRY_ORG [${sentrySourceEnv}]: add to deployment YAML or export in shell`,
+        );
+      if (!envVars.SENTRY_PROJECT && !process.env.SENTRY_PROJECT)
+        missing.push(
+          `SENTRY_PROJECT [${sentrySourceEnv}]: add to deployment YAML or export in shell`,
+        );
+    }
   }
 
   if (missing.length > 0)
@@ -220,12 +260,21 @@ function resolveAutoInit(
   deploymentDir: string,
   targetEnv: string,
   envList: string[],
+  devSource: string | undefined,
 ): "all" | "firebase" | "sentry" {
-  const targetEnvs =
-    targetEnv === "all"
-      ? envList.filter((e) => e !== "development")
-      : [targetEnv];
-  const keys = targetEnvs.flatMap((envName) =>
+  // For development: scan devSource (staging) YAML — development has no own YAML.
+  // For all: scan envList (staging is already included; dev mirrors it).
+  // For a specific env: scan just that env.
+  const scanEnvs =
+    targetEnv === "development"
+      ? devSource
+        ? [devSource]
+        : []
+      : targetEnv === "all"
+        ? envList
+        : [targetEnv];
+
+  const keys = scanEnvs.flatMap((envName) =>
     Object.keys(parseDeploymentEnv(deploymentDir, envName)),
   );
 
@@ -287,9 +336,18 @@ export async function run(opts: Options): Promise<void> {
       `No active environments found in ${opts.deploymentDir}/environments.yml`,
     );
 
+  // Development always mirrors the staging/preview source for public vars.
+  const devSource = findDevSource(activeEnvs);
+
   let envList: string[];
   if (opts.targetEnv === "all") {
     envList = activeEnvs;
+  } else if (opts.targetEnv === "development") {
+    if (!devSource)
+      err(
+        "--env development requires a staging or preview environment in environments.yml",
+      );
+    envList = [];
   } else {
     if (!activeEnvs.includes(opts.targetEnv)) {
       err(
@@ -300,19 +358,22 @@ export async function run(opts: Options): Promise<void> {
   }
 
   if (opts.init === "auto") {
-    opts.init = resolveAutoInit(opts.deploymentDir, opts.targetEnv, envList);
+    opts.init = resolveAutoInit(
+      opts.deploymentDir,
+      opts.targetEnv,
+      envList,
+      devSource,
+    );
   }
-  if (opts.init) validateInitConfig(opts, envList);
+  if (opts.init) validateInitConfig(opts, envList, devSource);
+
+  const syncDev =
+    (opts.targetEnv === "all" || opts.targetEnv === "development") &&
+    devSource !== undefined;
 
   if (opts.dryRun) {
     log("Dry run — no changes will be made");
     for (const envName of envList) {
-      if (opts.rotateKeys && envName === "development") {
-        log(
-          `  Would skip public var sync for development (vars managed locally via generate-local-env)`,
-        );
-        continue;
-      }
       const envFile = path.join(opts.deploymentDir, `${envName}.yml`);
       if (!fs.existsSync(envFile)) {
         warn(`No config file for '${envName}': ${envFile}`);
@@ -321,6 +382,13 @@ export async function run(opts: Options): Promise<void> {
       const target = vercelTarget(envName);
       log(`Would sync ${envName} → ${target}:`);
       const vars = parseDeploymentEnv(opts.deploymentDir, envName);
+      for (const key of Object.keys(vars)) {
+        log(`  Would sync: ${key}`);
+      }
+    }
+    if (syncDev) {
+      log(`Would sync development (from ${devSource}) → development:`);
+      const vars = parseDeploymentEnv(opts.deploymentDir, devSource!);
       for (const key of Object.keys(vars)) {
         log(`  Would sync: ${key}`);
       }
@@ -342,12 +410,6 @@ export async function run(opts: Options): Promise<void> {
   let totalUpdated = 0;
 
   for (const envName of envList) {
-    if (opts.rotateKeys && envName === "development") {
-      log(
-        `Skipping public var sync for development — vars are managed locally via generate-local-env`,
-      );
-      continue;
-    }
     const envFile = path.join(opts.deploymentDir, `${envName}.yml`);
     if (!fs.existsSync(envFile)) {
       warn(`No config file for '${envName}': ${envFile} — skipping`);
@@ -389,21 +451,59 @@ export async function run(opts: Options): Promise<void> {
     if (envList.length > 1) allEnvs = await client.listEnvVars();
   }
 
+  // Sync development target from the staging/preview source YAML.
+  // Development has no dedicated YAML; it mirrors staging's public vars while
+  // maintaining its own distinct Firebase key for independent rotation.
+  if (syncDev) {
+    const devEnvFile = path.join(opts.deploymentDir, `${devSource}.yml`);
+    if (!fs.existsSync(devEnvFile)) {
+      warn(
+        `No config file for development source '${devSource}': ${devEnvFile} — skipping development sync`,
+      );
+    } else {
+      log(`Syncing development (from ${devSource}) → development...`);
+      const vars = parseDeploymentEnv(opts.deploymentDir, devSource!);
+      const keys = Object.keys(vars);
+      if (keys.length === 0) {
+        warn(`No variables found in ${devEnvFile} — skipping development sync`);
+      } else {
+        if (envList.length > 0) allEnvs = await client.listEnvVars();
+        let created = 0;
+        let updated = 0;
+        for (const key of keys) {
+          const value = vars[key];
+          const existing = client.findEnvVar(allEnvs.envs, key, "development");
+          if (existing) {
+            await client.updateEnvVar(existing.id, value);
+            log(`  Updated : ${key}`);
+            updated++;
+          } else {
+            await client.createEnvVar(key, value, "development", "plain");
+            log(`  Created : ${key}`);
+            created++;
+          }
+        }
+        log(
+          `  development (from ${devSource}) — ${created} created, ${updated} updated`,
+        );
+        totalCreated += created;
+        totalUpdated += updated;
+      }
+    }
+  }
+
   log(
     `Done — ${totalCreated} created, ${totalUpdated} updated across all target environments.`,
   );
 
   if (opts.rotateKeys) {
     if (opts.init && opts.targetEnv === "all") {
-      const nonDevEnvs = envList.filter((e) => e !== "development");
       // Sentry is project-level (one org/project): init once across all Vercel
       // targets so only one key is created and stored in every environment.
-      if (
-        (opts.init === "sentry" || opts.init === "all") &&
-        nonDevEnvs.length > 0
-      ) {
-        const firstEnv = nonDevEnvs[0];
-        const envVars = parseDeploymentEnv(opts.deploymentDir, firstEnv);
+      if (opts.init === "sentry" || opts.init === "all") {
+        const sentrySourceEnv =
+          envList.find((e) => e !== "development") ?? envList[0];
+        const envVars = parseDeploymentEnv(opts.deploymentDir, sentrySourceEnv);
         await rotateKeysRun({
           targetEnv: "all",
           invalidateKeys: opts.invalidateKeys,
@@ -412,10 +512,12 @@ export async function run(opts: Options): Promise<void> {
           sentryProject: envVars.SENTRY_PROJECT || undefined,
         });
       }
-      // Firebase is per-project: each deployment env has its own Firebase project
-      // and SA email, so init once per env with that env's YAML values.
+      // Firebase is per-env: each Vercel target (production, preview, development)
+      // gets its own distinct GCP service account key for independent rotation.
+      // Development uses the staging SA credentials since it shares the same
+      // Firebase project as staging/preview.
       if (opts.init === "firebase" || opts.init === "all") {
-        for (const envName of nonDevEnvs) {
+        for (const envName of envList) {
           const envVars = parseDeploymentEnv(opts.deploymentDir, envName);
           await rotateKeysRun({
             targetEnv: vercelTarget(envName),
@@ -425,12 +527,27 @@ export async function run(opts: Options): Promise<void> {
             gcpProject: envVars.FIREBASE_PROJECT_ID || undefined,
           });
         }
+        if (devSource) {
+          const devEnvVars = parseDeploymentEnv(opts.deploymentDir, devSource);
+          await rotateKeysRun({
+            targetEnv: "development",
+            invalidateKeys: opts.invalidateKeys,
+            init: "firebase",
+            firebaseSaEmail: devEnvVars.FIREBASE_SA_EMAIL || undefined,
+            gcpProject: devEnvVars.FIREBASE_PROJECT_ID || undefined,
+          });
+        }
       }
     } else {
-      // Single-env or rotation-only: one call. For --env all, read YAML values
-      // from the first active env (Sentry org/project are the same across envs;
-      // Firebase credentials are auto-detected from existing keys during rotation).
-      const sourceEnv = opts.targetEnv === "all" ? envList[0] : opts.targetEnv;
+      // Single-env or rotation-only: one call.
+      // For --env development, read SA/project from devSource (staging YAML).
+      // For --env all without init, rotation auto-detects from existing keys.
+      const sourceEnv =
+        opts.targetEnv === "development"
+          ? devSource
+          : opts.targetEnv === "all"
+            ? envList[0]
+            : opts.targetEnv;
       const envVars = sourceEnv
         ? parseDeploymentEnv(opts.deploymentDir, sourceEnv)
         : {};

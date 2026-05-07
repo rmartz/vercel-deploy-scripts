@@ -166,7 +166,7 @@ describe("run", () => {
     });
   });
 
-  it("--init --env all iterates once per deployment env with per-env YAML values", async () => {
+  it("--init --env all iterates per deployment env with per-env YAML values and also inits development", async () => {
     const rotateKeys = await import("../../lib/rotation");
     const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
 
@@ -207,7 +207,8 @@ describe("run", () => {
       init: "firebase",
     });
 
-    expect(mockRotate).toHaveBeenCalledTimes(2);
+    // production, preview, and development (development uses staging SA)
+    expect(mockRotate).toHaveBeenCalledTimes(3);
     expect(mockRotate).toHaveBeenCalledWith({
       targetEnv: "production",
       invalidateKeys: true,
@@ -221,6 +222,96 @@ describe("run", () => {
       init: "firebase",
       firebaseSaEmail: "sa@staging.iam.gserviceaccount.com",
       gcpProject: "my-staging",
+    });
+    expect(mockRotate).toHaveBeenCalledWith({
+      targetEnv: "development",
+      invalidateKeys: true,
+      init: "firebase",
+      firebaseSaEmail: "sa@staging.iam.gserviceaccount.com",
+      gcpProject: "my-staging",
+    });
+  });
+
+  it("--rotate-keys --env development calls rotate with targetEnv development", async () => {
+    const rotateKeys = await import("../../lib/rotation");
+    const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
+
+    const { VercelClient } = await import("../../lib/vercel-api");
+    vi.spyOn(VercelClient.prototype, "listEnvVars").mockResolvedValue({
+      envs: [],
+      pagination: undefined,
+    });
+    vi.spyOn(VercelClient.prototype, "findEnvVar").mockReturnValue(undefined);
+    vi.spyOn(VercelClient.prototype, "createEnvVar").mockResolvedValue({
+      id: "x",
+      key: "k",
+      value: "v",
+      target: [],
+      type: "plain",
+    });
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    // Development is not in environments.yml; it mirrors staging as devSource.
+    const deployDir = makeDeploymentDir(tmpDir, ["staging"], {
+      staging: { MY_KEY: "val" },
+    });
+    await run({
+      targetEnv: "development",
+      deploymentDir: deployDir,
+      dryRun: false,
+      rotateKeys: true,
+      invalidateKeys: true,
+    });
+
+    expect(mockRotate).toHaveBeenCalledWith({
+      targetEnv: "development",
+      invalidateKeys: true,
+    });
+  });
+
+  it("--init sentry --env all reads Sentry vars from the staging devSource", async () => {
+    const rotateKeys = await import("../../lib/rotation");
+    const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
+
+    const { VercelClient } = await import("../../lib/vercel-api");
+    vi.spyOn(VercelClient.prototype, "listEnvVars").mockResolvedValue({
+      envs: [],
+      pagination: undefined,
+    });
+    vi.spyOn(VercelClient.prototype, "findEnvVar").mockReturnValue(undefined);
+    vi.spyOn(VercelClient.prototype, "createEnvVar").mockResolvedValue({
+      id: "x",
+      key: "k",
+      value: "v",
+      target: [],
+      type: "plain",
+    });
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const deployDir = makeDeploymentDir(tmpDir, ["staging"], {
+      staging: {
+        MY_KEY: "sval",
+        SENTRY_ORG: "my-org",
+        SENTRY_PROJECT: "my-proj",
+      },
+    });
+    await run({
+      targetEnv: "all",
+      deploymentDir: deployDir,
+      dryRun: false,
+      rotateKeys: true,
+      invalidateKeys: true,
+      init: "sentry",
+    });
+
+    expect(mockRotate).toHaveBeenCalledWith({
+      targetEnv: "all",
+      invalidateKeys: true,
+      init: "sentry",
+      sentryOrg: "my-org",
+      sentryProject: "my-proj",
     });
   });
 
@@ -275,7 +366,7 @@ describe("run", () => {
     });
   });
 
-  it("--init all --env all calls Sentry once and Firebase per deployment env", async () => {
+  it("--init all --env all calls Sentry once and Firebase for production, preview, and development", async () => {
     const rotateKeys = await import("../../lib/rotation");
     const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
 
@@ -320,7 +411,8 @@ describe("run", () => {
       init: "all",
     });
 
-    expect(mockRotate).toHaveBeenCalledTimes(3);
+    // Sentry once (project-level) + Firebase for production, preview, and development
+    expect(mockRotate).toHaveBeenCalledTimes(4);
     expect(mockRotate).toHaveBeenNthCalledWith(1, {
       targetEnv: "all",
       invalidateKeys: true,
@@ -337,6 +429,13 @@ describe("run", () => {
     });
     expect(mockRotate).toHaveBeenNthCalledWith(3, {
       targetEnv: "preview",
+      invalidateKeys: true,
+      init: "firebase",
+      firebaseSaEmail: "sa@staging.iam.gserviceaccount.com",
+      gcpProject: "my-staging",
+    });
+    expect(mockRotate).toHaveBeenNthCalledWith(4, {
+      targetEnv: "development",
       invalidateKeys: true,
       init: "firebase",
       firebaseSaEmail: "sa@staging.iam.gserviceaccount.com",
@@ -632,6 +731,151 @@ describe("run", () => {
     );
     expect(mockRotate).toHaveBeenCalledWith(
       expect.objectContaining({ init: "sentry" }),
+    );
+  });
+
+  it("--init firebase --env all includes development target using staging SA credentials", async () => {
+    const rotateKeys = await import("../../lib/rotation");
+    const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
+
+    const { VercelClient } = await import("../../lib/vercel-api");
+    vi.spyOn(VercelClient.prototype, "listEnvVars").mockResolvedValue({
+      envs: [],
+      pagination: undefined,
+    });
+    vi.spyOn(VercelClient.prototype, "findEnvVar").mockReturnValue(undefined);
+    vi.spyOn(VercelClient.prototype, "createEnvVar").mockResolvedValue({
+      id: "x",
+      key: "k",
+      value: "v",
+      target: [],
+      type: "plain",
+    });
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    // Development is not in environments.yml — it mirrors staging automatically.
+    const deployDir = makeDeploymentDir(tmpDir, ["production", "staging"], {
+      production: {
+        MY_KEY: "pval",
+        FIREBASE_SA_EMAIL: "sa@prod.iam.gserviceaccount.com",
+        FIREBASE_PROJECT_ID: "my-prod",
+      },
+      staging: {
+        MY_KEY: "sval",
+        FIREBASE_SA_EMAIL: "sa@staging.iam.gserviceaccount.com",
+        FIREBASE_PROJECT_ID: "my-staging",
+      },
+    });
+    await run({
+      targetEnv: "all",
+      deploymentDir: deployDir,
+      dryRun: false,
+      rotateKeys: true,
+      invalidateKeys: true,
+      init: "firebase",
+    });
+
+    expect(mockRotate).toHaveBeenCalledTimes(3);
+    expect(mockRotate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        targetEnv: "production",
+        init: "firebase",
+        firebaseSaEmail: "sa@prod.iam.gserviceaccount.com",
+        gcpProject: "my-prod",
+      }),
+    );
+    expect(mockRotate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        targetEnv: "preview",
+        init: "firebase",
+        firebaseSaEmail: "sa@staging.iam.gserviceaccount.com",
+        gcpProject: "my-staging",
+      }),
+    );
+    // Development uses staging SA credentials (shares the same Firebase project)
+    expect(mockRotate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        targetEnv: "development",
+        init: "firebase",
+        firebaseSaEmail: "sa@staging.iam.gserviceaccount.com",
+        gcpProject: "my-staging",
+      }),
+    );
+  });
+
+  it("validates Firebase credentials for development target against staging YAML in --init firebase", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    // Staging YAML is missing Firebase vars — development credential validation
+    // reads from staging (the devSource) and must report the error under [development].
+    const deployDir = makeDeploymentDir(tmpDir, ["production", "staging"], {
+      production: {
+        FIREBASE_SA_EMAIL: "sa@prod.iam.gserviceaccount.com",
+        FIREBASE_PROJECT_ID: "my-prod",
+      },
+      staging: {},
+    });
+
+    await expect(
+      run({
+        targetEnv: "all",
+        deploymentDir: deployDir,
+        dryRun: false,
+        rotateKeys: true,
+        invalidateKeys: true,
+        init: "firebase",
+      }),
+    ).rejects.toThrow(/\[development\]/);
+  });
+
+  it("--init auto --env development scans devSource (staging) for public vars", async () => {
+    const rotateKeys = await import("../../lib/rotation");
+    const mockRotate = vi.spyOn(rotateKeys, "run").mockResolvedValue(undefined);
+
+    const { VercelClient } = await import("../../lib/vercel-api");
+    vi.spyOn(VercelClient.prototype, "listEnvVars").mockResolvedValue({
+      envs: [],
+      pagination: undefined,
+    });
+    vi.spyOn(VercelClient.prototype, "findEnvVar").mockReturnValue(undefined);
+    vi.spyOn(VercelClient.prototype, "createEnvVar").mockResolvedValue({
+      id: "x",
+      key: "k",
+      value: "v",
+      target: [],
+      type: "plain",
+    });
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    // Firebase vars are in staging YAML; --init auto with --env development should
+    // detect them via devSource (staging) and init the development target.
+    const deployDir = makeDeploymentDir(tmpDir, ["staging"], {
+      staging: {
+        MY_KEY: "sval",
+        NEXT_PUBLIC_FIREBASE_PROJECT_ID: "my-staging",
+        FIREBASE_SA_EMAIL: "sa@staging.iam.gserviceaccount.com",
+        FIREBASE_PROJECT_ID: "my-staging",
+      },
+    });
+    await run({
+      targetEnv: "development",
+      deploymentDir: deployDir,
+      dryRun: false,
+      rotateKeys: true,
+      invalidateKeys: true,
+      init: "auto",
+    });
+
+    expect(mockRotate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        targetEnv: "development",
+        init: "firebase",
+        firebaseSaEmail: "sa@staging.iam.gserviceaccount.com",
+        gcpProject: "my-staging",
+      }),
     );
   });
 
