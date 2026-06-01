@@ -7,6 +7,7 @@ on:
 jobs:
   bats:
     runs-on: ubuntu-latest
+    timeout-minutes: 3
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -19,6 +20,7 @@ jobs:
 
   vitest:
     runs-on: ubuntu-latest
+    timeout-minutes: 3
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -31,6 +33,7 @@ jobs:
 
   gitleaks-fixtures:
     runs-on: ubuntu-latest
+    timeout-minutes: 2
     steps:
       - uses: actions/checkout@v4
       - name: Install gitleaks
@@ -48,6 +51,7 @@ jobs:
 
   yaml-parsing:
     runs-on: ubuntu-latest
+    timeout-minutes: 1
     steps:
       - uses: actions/checkout@v4
       - run: bash tests/terraform/test-yaml-parsing.sh
