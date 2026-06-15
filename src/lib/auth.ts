@@ -66,5 +66,5 @@ function readCliToken(): string | undefined {
  * Returns undefined if no token is available.
  */
 export function resolveVercelToken(): string | undefined {
-  return process.env.VERCEL_TOKEN || readCliToken() || undefined;
+  return process.env.VERCEL_TOKEN ?? readCliToken() ?? undefined;
 }
