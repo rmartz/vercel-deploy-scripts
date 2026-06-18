@@ -1,73 +1,62 @@
 #!/usr/bin/env bash
-# Enforces hard LOC caps derived from CLAUDE.md recommended limits:
-#   Source files (src/**/*.ts, not __tests__): recommended 200 → hard cap 400
-#   Test files  (src/__tests__/**/*.ts):       recommended 300 → hard cap 600
+# Ratchet-style file-size enforcement for TypeScript source files.
 #
-# Known exceptions to the hard cap are listed in .loc-exceptions, one path per
-# line (relative to repo root, comments with # permitted). Files listed there
-# are flagged as warnings rather than errors so CI stays green while the
-# violation is tracked and scheduled for refactoring.
+# Only checks files changed in the current PR (against merge-base).
+# For files over the limit: passes only if this PR reduces the line count.
+# For files under the limit: always passes.
+# Newly-added files over the limit: always fail (old count is 0).
+#
+# Thresholds from CLAUDE.md — 2× the recommended split threshold:
+#   Source files (src/**/*.ts, not __tests__): recommended ~200 → hard cap 400
+#   Test files   (src/__tests__/**/*.ts):      recommended ~300 → hard cap 600
+#
+# Requires: called from a git checkout with full history (fetch-depth: 0)
+# and the BASE_REF environment variable pointing to the PR's base branch.
 
 set -euo pipefail
-
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-EXCEPTIONS_FILE="$REPO_ROOT/.loc-exceptions"
 
 SOURCE_CAP=400
 TEST_CAP=600
 
-violations=0
-warnings=0
+base=$(git merge-base "origin/${BASE_REF}" HEAD)
 
-is_exception() {
-  local file="$1"
-  if [ ! -f "$EXCEPTIONS_FILE" ]; then
-    return 1
-  fi
-  local rel="${file#"$REPO_ROOT/"}"
-  while IFS= read -r line; do
-    # strip comments and whitespace
-    line="${line%%#*}"
-    line="${line#"${line%%[![:space:]]*}"}"
-    line="${line%"${line##*[![:space:]]}"}"
-    [ -z "$line" ] && continue
-    [ "$line" = "$rel" ] && return 0
-  done < "$EXCEPTIONS_FILE"
-  return 1
-}
-
-check_file() {
-  local file="$1"
-  local cap="$2"
-  local lines
-  lines=$(wc -l < "$file")
-  local rel="${file#"$REPO_ROOT/"}"
-
-  if [ "$lines" -gt "$cap" ]; then
-    if is_exception "$file"; then
-      echo "WARNING (known exception): $rel — $lines lines exceeds cap of $cap"
-      warnings=$((warnings + 1))
-    else
-      echo "ERROR: $rel — $lines lines exceeds hard cap of $cap"
-      violations=$((violations + 1))
-    fi
-  fi
-}
+failed=0
 
 while IFS= read -r file; do
-  if [[ "$file" == *"/__tests__/"* ]]; then
-    check_file "$file" "$TEST_CAP"
-  else
-    check_file "$file" "$SOURCE_CAP"
+  [ -f "$file" ] || continue
+
+  case "$file" in
+    src/*.ts|src/lib/*.ts) ;;
+    src/__tests__/*.ts|src/__tests__/*/*.ts) ;;
+    *) continue ;;
+  esac
+
+  case "$file" in
+    src/__tests__/*) limit=$TEST_CAP; kind="test" ;;
+    *) limit=$SOURCE_CAP; kind="source" ;;
+  esac
+
+  new=$(wc -l < "$file")
+
+  [ "$new" -lt "$limit" ] && continue
+
+  old=$(git show "$base:$file" 2>/dev/null | wc -l)
+
+  if [ "$new" -lt "$old" ]; then
+    echo "::notice file=$file,title=Oversized but improving::$file — $new lines (was $old, $kind cap: $limit); reducing, allowed"
+    continue
   fi
-done < <(find "$REPO_ROOT/src" -name "*.ts" -not -path "*/node_modules/*")
 
-if [ "$violations" -gt 0 ] || [ "$warnings" -gt 0 ]; then
+  echo "::error file=$file,title=File too long::$file — $new lines (was $old, $kind cap: $limit); over limit and not reduced by this PR"
+  failed=1
+done < <(git diff --name-only "$base" HEAD)
+
+if [ "$failed" -ne 0 ]; then
   echo ""
-  echo "Summary: $violations violation(s), $warnings known exception(s)"
-fi
-
-if [ "$violations" -gt 0 ]; then
-  echo "Add files to .loc-exceptions to acknowledge known violations pending refactoring."
+  echo "One or more changed files exceed the maximum line count and were not reduced by this PR."
+  echo "  Source files: recommended ~200 lines, hard cap ${SOURCE_CAP}"
+  echo "  Test files:   recommended ~300 lines, hard cap ${TEST_CAP}"
+  echo "A file over the cap passes only if this PR reduces its line count."
+  echo "Reduce or split the flagged files before merging."
   exit 1
 fi
