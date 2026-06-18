@@ -1,0 +1,3 @@
+pnpm exec tsc --noEmit
+pnpm exec lint-staged
+bash tests/check-file-sizes.sh --staged
