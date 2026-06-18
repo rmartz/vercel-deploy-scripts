@@ -1,0 +1,12 @@
+# Files that currently exceed the hard LOC cap and are pending refactoring.
+# Adding a file here silences the CI error but keeps it visible as a warning.
+# Remove entries as files are brought under the limit.
+#
+# Source cap: 400 lines (2× the ~200 LOC recommended limit)
+# Test cap:   600 lines (2× the ~300 LOC recommended limit)
+
+# 586 lines — needs splitting (e.g. arg parsing, orchestration, per-env logic)
+src/sync-env.ts
+
+# 1050 lines — needs splitting by scenario into separate test files
+src/__tests__/sync-env-tests/run-rotate.test.ts

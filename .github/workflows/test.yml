@@ -49,6 +49,13 @@ jobs:
       - name: Run gitleaks fixture tests
         run: bash tests/gitleaks/run-tests.sh
 
+  file-sizes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash tests/check-file-sizes.sh
+
   yaml-parsing:
     runs-on: ubuntu-latest
     timeout-minutes: 1
