@@ -1,3 +1,9 @@
+# Skip in git worktrees — .git is a file there (not a directory).
+# Agent commits in worktrees are covered by the CI backstop.
+# See rmartz/dotfiles#1291 for the path toward a claude/hooks/ split.
+if [ -f ".git" ]; then
+  exit 0
+fi
 pnpm exec tsc --noEmit
 pnpm exec lint-staged
 bash tests/check-file-sizes.sh --staged
