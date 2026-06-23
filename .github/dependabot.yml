@@ -4,6 +4,10 @@
 # update PR until the new release is at least 7 days old. This reduces exposure
 # to supply-chain attacks where a compromised package version is published and
 # typically caught and yanked within a few days of release.
+#
+# Updates are grouped to cut PR volume: routine minor and patch bumps are
+# batched into a single PR per ecosystem, while major version bumps stay
+# ungrouped so each gets its own PR for isolated review.
 version: 2
 updates:
   - package-ecosystem: "npm"
@@ -12,6 +16,13 @@ updates:
       interval: "weekly"
     cooldown:
       default-days: 7
+    groups:
+      npm-minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -19,3 +30,10 @@ updates:
       interval: "weekly"
     cooldown:
       default-days: 7
+    groups:
+      github-actions-minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
