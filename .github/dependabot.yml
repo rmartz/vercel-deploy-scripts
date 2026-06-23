@@ -1,0 +1,21 @@
+# Dependabot version updates.
+#
+# A 7-day cooldown is applied to every ecosystem: Dependabot will not open an
+# update PR until the new release is at least 7 days old. This reduces exposure
+# to supply-chain attacks where a compromised package version is published and
+# typically caught and yanked within a few days of release.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
