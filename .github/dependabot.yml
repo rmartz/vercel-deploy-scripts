@@ -5,9 +5,10 @@
 # to supply-chain attacks where a compromised package version is published and
 # typically caught and yanked within a few days of release.
 #
-# Updates are grouped to cut PR volume: routine minor and patch bumps are
-# batched into a single PR per ecosystem, while major version bumps stay
-# ungrouped so each gets its own PR for isolated review.
+# Updates are grouped to cut PR volume:
+#   - npm: production and development dependencies are batched into one PR each,
+#     split so a runtime-dependency change is never bundled with tooling churn.
+#   - github-actions: a single group batches all action bumps into one PR.
 version: 2
 updates:
   - package-ecosystem: "npm"
@@ -17,12 +18,10 @@ updates:
     cooldown:
       default-days: 7
     groups:
-      npm-minor-and-patch:
-        patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
+      npm-production:
+        dependency-type: "production"
+      npm-development:
+        dependency-type: "development"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -31,9 +30,6 @@ updates:
     cooldown:
       default-days: 7
     groups:
-      github-actions-minor-and-patch:
+      github-actions:
         patterns:
           - "*"
-        update-types:
-          - "minor"
-          - "patch"
