@@ -7,7 +7,9 @@
 #
 # Updates are grouped to cut PR volume:
 #   - npm: production and development dependencies are batched into one PR each,
-#     split so a runtime-dependency change is never bundled with tooling churn.
+#     restricted to minor and patch bumps so a runtime-dependency change is never
+#     bundled with tooling churn. Major bumps match no group and so are raised as
+#     individual PRs for isolated review.
 #   - github-actions: a single group batches all action bumps into one PR.
 version: 2
 updates:
@@ -20,8 +22,14 @@ updates:
     groups:
       npm-production:
         dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
       npm-development:
         dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "github-actions"
     directory: "/"
