@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.3
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.3
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.3
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -48,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.3
       - name: Install gitleaks
         env:
           GITLEAKS_VERSION: "8.30.1"
@@ -66,5 +66,5 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.3
       - run: bash tests/terraform/test-yaml-parsing.sh
