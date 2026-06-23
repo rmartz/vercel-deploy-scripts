@@ -39,7 +39,7 @@ const path = __importStar(require("path"));
 const logger_1 = require("./logger");
 function detectProject() {
     const projectId = process.env.VERCEL_PROJECT_ID;
-    const teamId = process.env.VERCEL_TEAM_ID || undefined;
+    const teamId = process.env.VERCEL_TEAM_ID ?? undefined;
     const projectJsonPath = path.join(process.cwd(), ".vercel", "project.json");
     if (fs.existsSync(projectJsonPath)) {
         const data = JSON.parse(fs.readFileSync(projectJsonPath, "utf-8"));

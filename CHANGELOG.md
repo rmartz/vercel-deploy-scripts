@@ -1,3 +1,15 @@
+# [4.0.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v3.1.0...v4.0.0) (2026-06-23)
+
+
+### Features
+
+* **tooling:** add ESLint, husky, and lint-staged ([#61](https://github.com/rmartz/vercel-deploy-scripts/issues/61)) ([a8aa237](https://github.com/rmartz/vercel-deploy-scripts/commit/a8aa23733df6fb8dacb87c0e6bb07af1535f2b03)), closes [#60](https://github.com/rmartz/vercel-deploy-scripts/issues/60)
+
+
+### BREAKING CHANGES
+
+* **tooling:** add ESLint, husky, and lint-staged (#61)
+
 # [3.1.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v3.0.0...v3.1.0) (2026-05-07)
 
 
