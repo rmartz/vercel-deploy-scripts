@@ -82,7 +82,7 @@ async function getFirebaseKeyIdForEnv(
     const saJson = JSON.parse(await client.getEnvVarValue(record.id)) as {
       private_key_id: string;
     };
-    return saJson.private_key_id ?? "";
+    return saJson.private_key_id;
   }
 
   const record = envs.find(
@@ -219,7 +219,7 @@ export async function rotateFirebase(
             client,
           ));
       }
-      if (!envSa) envSa = { email: fp.saEmail, gcpProject: fp.gcpProject };
+      envSa ??= { email: fp.saEmail, gcpProject: fp.gcpProject };
     }
 
     log(`  [${vercelEnv}] Rotating... (SA: ${envSa.email})`);
@@ -289,19 +289,19 @@ export async function initFirebase(
 
   const saEmail = saEmailOverride ?? process.env.FIREBASE_SA_EMAIL;
   if (!saEmail)
-    err(
+    return err(
       `FIREBASE_SA_EMAIL is required for --init firebase (target: ${targetEnv}). Set FIREBASE_SA_EMAIL in your deployment YAML or shell environment.`,
     );
   const gcpProject = gcpProjectOverride ?? process.env.GCLOUD_PROJECT;
   if (!gcpProject)
-    err(
+    return err(
       `GCLOUD_PROJECT is required for --init firebase (target: ${targetEnv}). Set FIREBASE_PROJECT_ID in your deployment YAML or GCLOUD_PROJECT in your shell environment.`,
     );
 
   const currentEnvs = await client.listEnvVars();
   for (const vercelEnv of targetEnvs(targetEnv)) {
     const keyFile = path.join(tempDir, `key-${vercelEnv}.json`);
-    createGcpKey(keyFile, saEmail!, gcpProject!);
+    createGcpKey(keyFile, saEmail, gcpProject);
 
     const newSaJson = JSON.parse(fs.readFileSync(keyFile, "utf-8")) as {
       private_key_id: string;

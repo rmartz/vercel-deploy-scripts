@@ -10,10 +10,10 @@ export function run(
     throw new Error(`Failed to run ${cmd}: ${result.error.message}`);
   if (result.status !== 0) {
     throw new Error(
-      `${cmd} exited with code ${result.status}: ${String(result.stderr ?? "")}`,
+      `${cmd} exited with code ${String(result.status)}: ${String(result.stderr)}`,
     );
   }
-  return String(result.stdout ?? "");
+  return String(result.stdout);
 }
 
 export function commandExists(cmd: string): boolean {
