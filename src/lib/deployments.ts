@@ -25,7 +25,7 @@ export async function triggerAndWaitRedeployments(
     }
     const deployTarget = vercelEnv === "production" ? "production" : "staging";
     const latest = await client.getLatestDeployment(
-      deployTarget as "production" | "staging",
+      deployTarget,
     );
     if (!latest) {
       warn(
