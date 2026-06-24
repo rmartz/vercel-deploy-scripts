@@ -1,3 +1,15 @@
+# [5.0.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v4.0.0...v5.0.0) (2026-06-24)
+
+
+### Continuous Integration
+
+* add typecheck job to test workflow ([#65](https://github.com/rmartz/vercel-deploy-scripts/issues/65)) ([e8edaae](https://github.com/rmartz/vercel-deploy-scripts/commit/e8edaae0a5769186f639729a97b73faf70519cb5))
+
+
+### BREAKING CHANGES
+
+* add typecheck job to test workflow (#65)
+
 # [4.0.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v3.1.0...v4.0.0) (2026-06-23)
 
 
