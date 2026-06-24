@@ -309,7 +309,7 @@ describe("run — --init happy paths", () => {
         args.includes("create") &&
         args.includes("keys")
       ) {
-        const outputFile = args[args.indexOf("create") + 1] as string;
+        const outputFile = args[args.indexOf("create") + 1];
         fs.writeFileSync(outputFile, JSON.stringify(fakeKey));
       }
       return "rmartz";

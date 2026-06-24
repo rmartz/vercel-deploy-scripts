@@ -9,16 +9,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6.0.3
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
 
-  vitest:
+  typecheck:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
@@ -29,13 +29,39 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm exec tsc --noEmit
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v6.0.3
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint
+
+  vitest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v6.0.3
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - run: pnpm run test:ts
 
   gitleaks-fixtures:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.3
       - name: Install gitleaks
         env:
           GITLEAKS_VERSION: "8.30.1"
@@ -65,5 +91,5 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.3
       - run: bash tests/terraform/test-yaml-parsing.sh
