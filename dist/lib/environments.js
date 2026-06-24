@@ -61,7 +61,9 @@ function parseDeploymentEnv(deploymentDir, envName) {
         : data;
     const result = {};
     for (const [key, value] of Object.entries(vars)) {
-        if (value === null || value === undefined)
+        if (typeof value !== "string" &&
+            typeof value !== "number" &&
+            typeof value !== "boolean")
             continue;
         const strValue = typeof value === "boolean" ? String(value).toLowerCase() : String(value);
         if (strValue)

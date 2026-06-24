@@ -10,7 +10,7 @@ export interface ProjectConfig {
 
 export function detectProject(): ProjectConfig {
   const projectId = process.env.VERCEL_PROJECT_ID;
-  const teamId = process.env.VERCEL_TEAM_ID || undefined;
+  const teamId = process.env.VERCEL_TEAM_ID ?? undefined;
 
   const projectJsonPath = path.join(process.cwd(), ".vercel", "project.json");
   if (fs.existsSync(projectJsonPath)) {
