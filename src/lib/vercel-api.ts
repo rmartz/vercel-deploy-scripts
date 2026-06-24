@@ -129,7 +129,7 @@ export class VercelClient {
       await this.deleteEnvVar(existing.id);
     }
     const created = await this.createEnvVar(key, value, target, type);
-    if (!created?.id) {
+    if (!created.id) {
       const refetched = await this.listEnvVars();
       const confirmed = this.findEnvVar(refetched.envs, key, target);
       if (!confirmed?.id) {
@@ -157,9 +157,10 @@ export class VercelClient {
     });
     if (!res.ok) return null;
     const text = await res.text();
+    // eslint-disable-next-line no-control-regex
     const cleaned = text.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "");
     const data = JSON.parse(cleaned) as { deployments: VercelDeployment[] };
-    return data.deployments?.[0] ?? null;
+    return data.deployments[0] ?? null;
   }
 
   async triggerRedeployment(

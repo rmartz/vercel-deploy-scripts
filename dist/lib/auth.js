@@ -79,6 +79,6 @@ function readCliToken() {
  * Returns undefined if no token is available.
  */
 function resolveVercelToken() {
-    return process.env.VERCEL_TOKEN || readCliToken() || undefined;
+    return process.env.VERCEL_TOKEN ?? readCliToken() ?? undefined;
 }
 //# sourceMappingURL=auth.js.map

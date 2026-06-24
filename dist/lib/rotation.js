@@ -124,7 +124,11 @@ async function run(opts) {
                 if (hasFirebase && fp)
                     await (0, firebase_1.invalidateFirebaseKeys)(client, fp);
                 if (hasSentry && oldSentryKeyId) {
-                    await (0, sentry_1.invalidateSentryKey)(oldSentryKeyId, opts.sentryOrg ?? process.env.SENTRY_ORG, opts.sentryProject ?? process.env.SENTRY_PROJECT);
+                    const org = opts.sentryOrg ?? process.env.SENTRY_ORG;
+                    const project = opts.sentryProject ?? process.env.SENTRY_PROJECT;
+                    if (!org || !project)
+                        return (0, logger_1.err)("SENTRY_ORG and SENTRY_PROJECT are required for key invalidation");
+                    await (0, sentry_1.invalidateSentryKey)(oldSentryKeyId, org, project);
                 }
             }
             else {

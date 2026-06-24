@@ -35,7 +35,10 @@ export interface RotationOptions {
 
 // ─── Prerequisites ────────────────────────────────────────────────────────────
 
-function checkPrereqs(needsGcloud: boolean, token: string | undefined): void {
+function checkPrereqs(
+  needsGcloud: boolean,
+  token: string | undefined,
+): asserts token is string {
   const missing: string[] = [];
   if (!commandExists("vercel")) missing.push("vercel");
   if (needsGcloud && !commandExists("gcloud")) missing.push("gcloud");
@@ -68,7 +71,7 @@ export async function run(opts: RotationOptions): Promise<void> {
     `Project: ${project.projectId}${project.teamId ? ` (team: ${project.teamId})` : ""}`,
   );
 
-  const client = new VercelClient(token!, project.projectId, project.teamId);
+  const client = new VercelClient(token, project.projectId, project.teamId);
 
   const allEnvs = await client.listEnvVars();
   // Scope key-existence checks to the specific Vercel target so that
@@ -157,11 +160,13 @@ export async function run(opts: RotationOptions): Promise<void> {
         log("Invalidating old keys...");
         if (hasFirebase && fp) await invalidateFirebaseKeys(client, fp);
         if (hasSentry && oldSentryKeyId) {
-          await invalidateSentryKey(
-            oldSentryKeyId,
-            opts.sentryOrg ?? process.env.SENTRY_ORG!,
-            opts.sentryProject ?? process.env.SENTRY_PROJECT!,
-          );
+          const org = opts.sentryOrg ?? process.env.SENTRY_ORG;
+          const project = opts.sentryProject ?? process.env.SENTRY_PROJECT;
+          if (!org || !project)
+            return err(
+              "SENTRY_ORG and SENTRY_PROJECT are required for key invalidation",
+            );
+          await invalidateSentryKey(oldSentryKeyId, org, project);
         }
       } else {
         log("Skipping key invalidation (--no-invalidate)");

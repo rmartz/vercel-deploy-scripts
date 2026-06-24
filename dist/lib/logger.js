@@ -45,9 +45,9 @@ class FatalError extends Error {
     }
 }
 exports.FatalError = FatalError;
-const log = (msg) => console.log(`[${scriptName}] ${msg}`);
+const log = (msg) => { console.log(`[${scriptName}] ${msg}`); };
 exports.log = log;
-const warn = (msg) => console.error(`[${scriptName}] WARNING: ${msg}`);
+const warn = (msg) => { console.error(`[${scriptName}] WARNING: ${msg}`); };
 exports.warn = warn;
 const err = (msg) => {
     throw new FatalError(msg);

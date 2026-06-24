@@ -45,6 +45,12 @@ pnpm run test:ts   # Run Vitest unit tests
 - **Keep tests simple.** A failing test should make it immediately obvious whether the failure is a bug or an intentional change in behavior. If understanding a failure requires reading more than one layer of test setup or multiple assertions, split the test.
 - **Granularity scales with level of abstraction.** Low-level functions (pure utilities, parsers) warrant thorough edge-case coverage. High-level functions (service orchestration) should have smoke tests that verify they correctly apply the lower-level logic — not re-test every edge case that belongs in the lower-level tests.
 
+## Documentation
+
+- The `docs/` directory holds one reference page per source unit, structured as an [Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) bundle — markdown + YAML frontmatter, retrievable by agents before a task. `docs/README.md` is the index; see it for the field reference.
+- **Whenever you add, remove, or change a library module (`src/lib/*.ts`), the CLI (`src/sync-env.ts`), or a shell script (`scripts/*.sh`), add or update its corresponding `docs/` page in the same PR** and keep the `docs/README.md` index in sync. Each page requires OKF frontmatter: `type` (one of `Module`, `CLI`, `Script`), `title`, `description`, and `resource` (the repo-relative source path); `tags` are optional. This is enforced by `src/__tests__/docs-okf.test.ts`, which fails if any source unit lacks a page or any page's frontmatter is invalid.
+- Documentation is retrieval reference, not policy. Coding standards and workflow rules stay in this file; end-user usage stays in the repo `README.md`.
+
 ## Git Conventions
 
 - Branch names: lowercase with hyphens, prefixed by type: `feat/`, `fix/`, `chore/`, `refactor/`, `docs/`, `ci/` (e.g., `feat/yaml-driven-init-config`).

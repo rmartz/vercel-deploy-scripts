@@ -23,7 +23,10 @@ import {
 export { parseArgs };
 export type { Options };
 
-function checkPrereqs(opts: Options, token: string | undefined): void {
+function checkPrereqs(
+  opts: Options,
+  token: string | undefined,
+): asserts token is string {
   if (!token)
     err(
       "No Vercel token found. Set VERCEL_TOKEN or run 'vercel login' to authenticate.",
@@ -101,7 +104,7 @@ export async function run(opts: Options): Promise<void> {
     }
     if (syncDev) {
       log(`Would sync development (from ${devSource}) → development:`);
-      const vars = parseDeploymentEnv(opts.deploymentDir, devSource!);
+      const vars = parseDeploymentEnv(opts.deploymentDir, devSource);
       for (const key of Object.keys(vars)) {
         log(`  Would sync: ${key}`);
       }
@@ -115,7 +118,7 @@ export async function run(opts: Options): Promise<void> {
     return;
   }
 
-  const client = new VercelClient(token!, project.projectId, project.teamId);
+  const client = new VercelClient(token, project.projectId, project.teamId);
 
   let allEnvs = await client.listEnvVars();
 
@@ -175,7 +178,7 @@ export async function run(opts: Options): Promise<void> {
       );
     } else {
       log(`Syncing development (from ${devSource}) → development...`);
-      const vars = parseDeploymentEnv(opts.deploymentDir, devSource!);
+      const vars = parseDeploymentEnv(opts.deploymentDir, devSource);
       const keys = Object.keys(vars);
       if (keys.length === 0) {
         warn(`No variables found in ${devEnvFile} — skipping development sync`);

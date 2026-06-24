@@ -1,3 +1,34 @@
+# [5.1.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v5.0.0...v5.1.0) (2026-06-24)
+
+
+### Features
+
+* **docs:** add OKF-aligned docs/ reference tree ([#71](https://github.com/rmartz/vercel-deploy-scripts/issues/71)) ([0f76f74](https://github.com/rmartz/vercel-deploy-scripts/commit/0f76f745d394db8476edb98c26dfa30b98acb8c9)), closes [#70](https://github.com/rmartz/vercel-deploy-scripts/issues/70)
+
+# [5.0.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v4.0.0...v5.0.0) (2026-06-24)
+
+
+### Continuous Integration
+
+* add typecheck job to test workflow ([#65](https://github.com/rmartz/vercel-deploy-scripts/issues/65)) ([e8edaae](https://github.com/rmartz/vercel-deploy-scripts/commit/e8edaae0a5769186f639729a97b73faf70519cb5))
+
+
+### BREAKING CHANGES
+
+* add typecheck job to test workflow (#65)
+
+# [4.0.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v3.1.0...v4.0.0) (2026-06-23)
+
+
+### Features
+
+* **tooling:** add ESLint, husky, and lint-staged ([#61](https://github.com/rmartz/vercel-deploy-scripts/issues/61)) ([a8aa237](https://github.com/rmartz/vercel-deploy-scripts/commit/a8aa23733df6fb8dacb87c0e6bb07af1535f2b03)), closes [#60](https://github.com/rmartz/vercel-deploy-scripts/issues/60)
+
+
+### BREAKING CHANGES
+
+* **tooling:** add ESLint, husky, and lint-staged (#61)
+
 # [3.1.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v3.0.0...v3.1.0) (2026-05-07)
 
 
