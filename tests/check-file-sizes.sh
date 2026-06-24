@@ -40,7 +40,7 @@ while IFS= read -r file; do
 
   [ "$new" -lt "$limit" ] && continue
 
-  old=$(git show "$base:$file" 2>/dev/null | wc -l)
+  old=$(git show "$base:$file" 2>/dev/null | wc -l) || old=0
 
   if [ "$new" -lt "$old" ]; then
     echo "::notice file=$file,title=Oversized but improving::$file — $new lines (was $old, $kind cap: $limit); reducing, allowed"
