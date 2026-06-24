@@ -73,7 +73,7 @@ async function getFirebaseKeyIdForEnv(vercelEnv, envs, pattern, client) {
         if (!record)
             return "";
         const saJson = JSON.parse(await client.getEnvVarValue(record.id));
-        return saJson.private_key_id ?? "";
+        return saJson.private_key_id;
     }
     const record = envs.find((e) => e.key === "FIREBASE_PRIVATE_KEY_ID" && e.target.includes(vercelEnv));
     if (!record)
@@ -145,8 +145,7 @@ async function rotateFirebase(targetEnv, client, tempDir) {
                     (await getFirebaseSaForEnv("preview", allEnvs.envs, fp.pattern, client)) ??
                         (await getFirebaseSaForEnv("development", allEnvs.envs, fp.pattern, client));
             }
-            if (!envSa)
-                envSa = { email: fp.saEmail, gcpProject: fp.gcpProject };
+            envSa ??= { email: fp.saEmail, gcpProject: fp.gcpProject };
         }
         (0, logger_1.log)(`  [${vercelEnv}] Rotating... (SA: ${envSa.email})`);
         const keyFile = path.join(tempDir, `key-${vercelEnv}.json`);
@@ -182,10 +181,10 @@ async function initFirebase(targetEnv, client, tempDir, saEmailOverride, gcpProj
     (0, logger_1.log)("Initializing Firebase service account keys...");
     const saEmail = saEmailOverride ?? process.env.FIREBASE_SA_EMAIL;
     if (!saEmail)
-        (0, logger_1.err)(`FIREBASE_SA_EMAIL is required for --init firebase (target: ${targetEnv}). Set FIREBASE_SA_EMAIL in your deployment YAML or shell environment.`);
+        return (0, logger_1.err)(`FIREBASE_SA_EMAIL is required for --init firebase (target: ${targetEnv}). Set FIREBASE_SA_EMAIL in your deployment YAML or shell environment.`);
     const gcpProject = gcpProjectOverride ?? process.env.GCLOUD_PROJECT;
     if (!gcpProject)
-        (0, logger_1.err)(`GCLOUD_PROJECT is required for --init firebase (target: ${targetEnv}). Set FIREBASE_PROJECT_ID in your deployment YAML or GCLOUD_PROJECT in your shell environment.`);
+        return (0, logger_1.err)(`GCLOUD_PROJECT is required for --init firebase (target: ${targetEnv}). Set FIREBASE_PROJECT_ID in your deployment YAML or GCLOUD_PROJECT in your shell environment.`);
     const currentEnvs = await client.listEnvVars();
     for (const vercelEnv of targetEnvs(targetEnv)) {
         const keyFile = path.join(tempDir, `key-${vercelEnv}.json`);
