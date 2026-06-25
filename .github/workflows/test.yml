@@ -75,6 +75,18 @@ jobs:
       - name: Run gitleaks fixture tests
         run: bash tests/gitleaks/run-tests.sh
 
+  file-sizes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: bash tests/check-file-sizes.sh
+        env:
+          BASE_REF: ${{ github.base_ref }}
+
   yaml-parsing:
     runs-on: ubuntu-latest
     timeout-minutes: 1
