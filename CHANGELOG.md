@@ -1,3 +1,10 @@
+# [5.2.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v5.1.0...v5.2.0) (2026-06-29)
+
+
+### Features
+
+* block conflict markers in the pre-commit hook ([#72](https://github.com/rmartz/vercel-deploy-scripts/issues/72)) ([895b3db](https://github.com/rmartz/vercel-deploy-scripts/commit/895b3db0775b2c3a49d667b7cbe4f1a82adbae81)), closes [#66](https://github.com/rmartz/vercel-deploy-scripts/issues/66) [#69](https://github.com/rmartz/vercel-deploy-scripts/issues/69) [#61](https://github.com/rmartz/vercel-deploy-scripts/issues/61)
+
 # [5.1.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v5.0.0...v5.1.0) (2026-06-24)
 
 
