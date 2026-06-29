@@ -92,4 +92,4 @@ jobs:
     timeout-minutes: 1
     steps:
       - uses: actions/checkout@v6.0.3
-      - run: bash tests/terraform/test-yaml-parsing.sh
+      - run: bash tests/yaml/test-yaml-parsing.sh
