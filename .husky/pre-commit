@@ -1,5 +1,9 @@
-# Skip in git worktrees — .git is a file there (not a directory).
-# Agent commits in worktrees are covered by the CI backstop.
+# Block leftover Git conflict markers in every worktree. Pure git, no deps,
+# so it runs before (and regardless of) the worktree guard below.
+bash tests/check-conflict-markers.sh
+
+# Skip the dependency-bound checks in git worktrees — .git is a file there
+# (not a directory). Agent commits in worktrees are covered by the CI backstop.
 # See rmartz/dotfiles#1291 for the path toward a claude/hooks/ split.
 if [ -f ".git" ]; then
   exit 0
