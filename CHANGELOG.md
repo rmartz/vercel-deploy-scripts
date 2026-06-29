@@ -1,3 +1,10 @@
+# [5.1.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v5.0.0...v5.1.0) (2026-06-24)
+
+
+### Features
+
+* **docs:** add OKF-aligned docs/ reference tree ([#71](https://github.com/rmartz/vercel-deploy-scripts/issues/71)) ([0f76f74](https://github.com/rmartz/vercel-deploy-scripts/commit/0f76f745d394db8476edb98c26dfa30b98acb8c9)), closes [#70](https://github.com/rmartz/vercel-deploy-scripts/issues/70)
+
 # [5.0.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v4.0.0...v5.0.0) (2026-06-24)
 
 
