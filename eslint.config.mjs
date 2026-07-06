@@ -23,6 +23,13 @@ export default tseslint.config(
       },
     },
     rules: {
+      // Hard cap on source-file length (all lines counted), replacing the
+      // bespoke tests/check-file-sizes.sh ratchet. Test files raise this to
+      // 600 in the override below (last match wins).
+      "max-lines": [
+        "error",
+        { max: 400, skipBlankLines: false, skipComments: false },
+      ],
       "@typescript-eslint/restrict-template-expressions": [
         "error",
         { allowNumber: true, allowBoolean: true, allowNullish: true },
@@ -32,6 +39,10 @@ export default tseslint.config(
   {
     files: ["src/**/*.test.ts"],
     rules: {
+      "max-lines": [
+        "error",
+        { max: 600, skipBlankLines: false, skipComments: false },
+      ],
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/no-unsafe-member-access": "off",
       "@typescript-eslint/no-unsafe-argument": "off",

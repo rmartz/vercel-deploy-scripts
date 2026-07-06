@@ -29,8 +29,8 @@ pnpm run test:ts   # Run Vitest unit tests
 
 ## File Organization
 
-- **Source files**: Target under ~200 lines; consider splitting by logical concern around ~300 lines. Existing large files (`rotate-keys.ts`) are known exceptions until refactored.
-- **Test files**: Target under ~300 lines. Place in `src/__tests__/` using `.test.ts` extension. When splitting, organize into a `{module}-tests/` subdirectory.
+- **Source files**: Target under ~200 lines; consider splitting by logical concern around ~300 lines. A hard cap of **400 lines** is enforced by ESLint's `max-lines` rule (`pnpm lint`, run in CI and at commit via lint-staged).
+- **Test files**: Target under ~300 lines. Place in `src/__tests__/` using `.test.ts` extension. When splitting, organize into a `{module}-tests/` subdirectory. A hard cap of **600 lines** is enforced by ESLint's `max-lines` rule.
 - Use named exports. Default exports are not used in this project.
 
 ## Testing Conventions
