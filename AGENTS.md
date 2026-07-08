@@ -53,7 +53,7 @@ pnpm run test:ts   # Run Vitest unit tests
 
 ## CI
 
-- **GitHub Actions must be pinned to a full commit SHA, not a mutable tag** — e.g. `uses: actions/checkout@9c091bb… # v7.0.0`, never `@v7`. A tag can be moved to a hostile commit by a compromised maintainer; a SHA is immutable. Keep the version in a same-line `# vX.Y.Z` comment (Dependabot updates both the SHA and the comment on new releases). Local (`./`) and `docker://` refs are exempt. Enforced by `tests/check-action-pins.sh` via the `action-pins` workflow.
+- **GitHub Actions must be pinned to a full commit SHA _with_ a same-line version comment** — e.g. `uses: actions/checkout@9c091bb… # v7.0.0`, never `@v7` and never a bare SHA. A tag can be moved to a hostile commit by a compromised maintainer; a SHA is immutable. The `# vX.Y.Z` comment is **required**, not decorative: Dependabot reads it to keep the pin updated (it bumps both the SHA and the comment on new releases), and without it the pin silently freezes. Local (`./`) and `docker://` refs are exempt. Both requirements are enforced by `tests/check-action-pins.sh` via the `action-pins` workflow.
 
 ## Git Conventions
 

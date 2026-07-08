@@ -33,6 +33,20 @@ EOF
   [[ "$output" == *"actions/checkout@v7"* ]]
 }
 
+@test "fails on a SHA pin with no version comment" {
+  write_workflow "      - uses: actions/checkout@$SHA"
+  run bash "$SCRIPT"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"version comment"* ]]
+}
+
+@test "fails on a SHA pin whose comment has no version" {
+  write_workflow "      - uses: actions/checkout@$SHA # pinned"
+  run bash "$SCRIPT"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"version comment"* ]]
+}
+
 @test "fails on a major.minor.patch tag ref" {
   write_workflow "      - uses: actions/setup-node@v6.4.0"
   run bash "$SCRIPT"
