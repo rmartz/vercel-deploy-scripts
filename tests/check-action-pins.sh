@@ -12,7 +12,7 @@
 # Local actions / reusable workflows in this repo (`./...`) and Docker image refs
 # (`docker://...`) are exempt — they have no upstream release to pin or track.
 
-set -uo pipefail
+set -euo pipefail
 shopt -s nullglob
 
 violations=0
