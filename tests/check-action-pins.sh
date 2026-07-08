@@ -4,10 +4,10 @@
 #
 # - The SHA is the security boundary: a tag like @v4 is mutable, so a compromised
 #   maintainer can move it to a hostile commit; a SHA cannot be moved.
-# - The version comment is REQUIRED because Dependabot reads it to keep the pin
-#   updated — on a new release it bumps both the SHA and the comment. Without a
-#   comment Dependabot cannot determine the current version, so the pin silently
-#   freezes.
+# - A full `major.minor.patch` version comment is REQUIRED because Dependabot
+#   reads it to keep the pin updated — on a new release it bumps both the SHA and
+#   the comment. Without a comment (or with a partial one like `# v7`, which
+#   Dependabot tracks unreliably) the pin silently freezes on an old version.
 #
 # Local actions / reusable workflows in this repo (`./...`) and Docker image refs
 # (`docker://...`) are exempt — they have no upstream release to pin or track.
@@ -32,9 +32,9 @@ for wf in .github/workflows/*.yml .github/workflows/*.yaml; do
       echo "::error file=$wf::'$ref' is not pinned to a commit SHA"
       echo "  $wf: $ref  — pin to a full 40-char commit SHA"
       violations=$((violations + 1))
-    elif [[ ! "$rest" =~ (v[0-9]|[0-9]+\.[0-9]+) ]]; then
-      echo "::error file=$wf::'$ref' is SHA-pinned but has no version comment"
-      echo "  $wf: $ref  — add a same-line '# vX.Y.Z' comment so Dependabot can track it"
+    elif [[ ! "$rest" =~ v?[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+      echo "::error file=$wf::'$ref' lacks a full major.minor.patch version comment"
+      echo "  $wf: $ref  — add a same-line '# vX.Y.Z' comment (full semver; Dependabot tracks it unreliably otherwise)"
       violations=$((violations + 1))
     fi
   done < <(grep -E "^[[:space:]]*-?[[:space:]]*uses:" "$wf")
