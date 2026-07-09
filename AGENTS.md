@@ -51,6 +51,10 @@ pnpm run test:ts   # Run Vitest unit tests
 - **Whenever you add, remove, or change a library module (`src/lib/*.ts`), the CLI (`src/sync-env.ts`), or a shell script (`scripts/*.sh`), add or update its corresponding `docs/` page in the same PR** and keep the `docs/README.md` index in sync. Each page requires OKF frontmatter: `type` (one of `Module`, `CLI`, `Script`), `title`, `description`, and `resource` (the repo-relative source path); `tags` are optional. This is enforced by `src/__tests__/docs-okf.test.ts`, which fails if any source unit lacks a page or any page's frontmatter is invalid.
 - Documentation is retrieval reference, not policy. Coding standards and workflow rules stay in this file; end-user usage stays in the repo `README.md`.
 
+## CI
+
+- **GitHub Actions must be pinned to a full commit SHA _with_ a same-line version comment** — e.g. `uses: actions/checkout@9c091bb… # v7.0.0`, never `@v7` and never a bare SHA. A tag can be moved to a hostile commit by a compromised maintainer; a SHA is immutable. The `# vX.Y.Z` comment is **required** and must be a **full `major.minor.patch`** version (not `# v7` or `# v7.0`): Dependabot reads it to keep the pin updated (it bumps both the SHA and the comment on new releases), and it tracks partial versions unreliably — without a full-semver comment the pin silently freezes. Local (`./`) and `docker://` refs are exempt. Both requirements are enforced by `tests/check-action-pins.sh` via the `action-pins` workflow.
+
 ## Git Conventions
 
 - Branch names: lowercase with hyphens, prefixed by type: `feat/`, `fix/`, `chore/`, `refactor/`, `docs/`, `ci/` (e.g., `feat/yaml-driven-init-config`).

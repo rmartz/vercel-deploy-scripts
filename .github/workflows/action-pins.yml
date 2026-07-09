@@ -1,0 +1,20 @@
+name: Action Pins
+
+# Only runs when a workflow file changes — the only thing that can affect the
+# pinning check. Keeps the ratchet cheap for unrelated PRs.
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+
+jobs:
+  action-pins:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - run: bash tests/check-action-pins.sh
