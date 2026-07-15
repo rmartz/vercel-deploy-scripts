@@ -32,9 +32,9 @@
     "@eslint/js": "^10.0.1",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
-    "@semantic-release/github": "^12.0.8",
+    "@semantic-release/github": "^12.0.9",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^26.0.1",
+    "@types/node": "^26.1.0",
     "@vitest/coverage-v8": "^3.0.0",
     "bats": "github:bats-core/bats-core#v1.11.1",
     "eslint": "^10.6.0",
@@ -44,7 +44,7 @@
     "prettier": "^3.9.4",
     "semantic-release": "^25.0.5",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.62.1",
+    "typescript-eslint": "^8.63.0",
     "vitest": "^3.0.0"
   }
 }
