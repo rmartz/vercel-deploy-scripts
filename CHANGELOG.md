@@ -1,3 +1,15 @@
+# [7.0.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v6.0.0...v7.0.0) (2026-07-21)
+
+
+### chore
+
+* **deps-dev:** bump the npm-development group with 5 updates ([#102](https://github.com/rmartz/vercel-deploy-scripts/issues/102)) ([fc4606b](https://github.com/rmartz/vercel-deploy-scripts/commit/fc4606b805fce624bd07a113eba8b5dd96922072))
+
+
+### BREAKING CHANGES
+
+* **deps-dev:** bump the npm-development group with 5 updates (#102)
+
 # [6.0.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v5.2.0...v6.0.0) (2026-07-07)
 
 
