@@ -38,13 +38,13 @@
     "@vitest/coverage-v8": "^3.0.0",
     "bats": "github:bats-core/bats-core#v1.11.1",
     "eslint": "^10.8.0",
-    "globals": "^17.8.0",
+    "globals": "^17.9.0",
     "husky": "^9.1.7",
-    "lint-staged": "^17.2.0",
+    "lint-staged": "^17.3.0",
     "prettier": "^3.9.6",
     "semantic-release": "^25.0.8",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.65.0",
+    "typescript-eslint": "^8.66.0",
     "vitest": "^3.0.0"
   }
 }
