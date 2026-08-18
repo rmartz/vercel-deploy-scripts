@@ -1,3 +1,15 @@
+# [9.0.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v8.0.0...v9.0.0) (2026-08-18)
+
+
+### chore
+
+* **deps-dev:** bump the npm-development group across 1 directory with 6 updates ([#111](https://github.com/rmartz/vercel-deploy-scripts/issues/111)) ([77d4954](https://github.com/rmartz/vercel-deploy-scripts/commit/77d4954c81f3f2f37fb8e1120bb039ccd77d5868))
+
+
+### BREAKING CHANGES
+
+* **deps-dev:** bump the npm-development group across 1 directory with 6 updates (#111)
+
 # [8.0.0](https://github.com/rmartz/vercel-deploy-scripts/compare/v7.0.0...v8.0.0) (2026-08-05)
 
 
