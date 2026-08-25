@@ -38,7 +38,7 @@
     "@vitest/coverage-v8": "^3.0.0",
     "bats": "github:bats-core/bats-core#v1.11.1",
     "eslint": "^10.8.1",
-    "globals": "^17.9.0",
+    "globals": "^17.11.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.3.0",
     "prettier": "^3.9.6",
