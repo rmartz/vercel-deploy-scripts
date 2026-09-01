@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       js-yaml:
-        specifier: ^4.1.0
-        version: 4.1.1
+        specifier: ^5.4.0
+        version: 5.4.0
     devDependencies:
       '@eslint/js':
         specifier: ^10.0.1
@@ -1374,8 +1374,12 @@ packages:
   js-tokens@9.0.1:
     resolution: {integrity: sha512-mxa9E9ITFOt0ban3j6L5MpjwegGz6lBQmM1IJkWeBZGcMxto50+eWdjC/52xDbS2vy0k7vIMK0Fe2wfL9OQSpQ==}
 
-  js-yaml@4.1.1:
-    resolution: {integrity: sha512-qQKT4zQxXl8lLwBtHMWwaTcGfFOZviOJet3Oy/xmGk2gZH677CJM9EvtfdSkgWcATZhj/55JZ0rmy3myCT5lsA==}
+  js-yaml@4.3.1:
+    resolution: {integrity: sha512-CY6crGq313MX8GkwvB7tzgp99vjQxY1++5y10/BKN/GUfHqWaOGQMNZkBvqSzsZKWk/ijwHlWzzkLulsGHhjWQ==}
+    hasBin: true
+
+  js-yaml@5.4.0:
+    resolution: {integrity: sha512-jE7vUJIebKzYQI5xu4co5CRBDlDEYnHrdzsxs4O2giCz4v2SbVMYKpmt1D9L38OKQAeCWmrOTRiCV93u0UkaJA==}
     hasBin: true
 
   json-buffer@3.0.1:
@@ -3121,7 +3125,7 @@ snapshots:
     dependencies:
       env-paths: 2.2.1
       import-fresh: 3.3.1
-      js-yaml: 4.1.1
+      js-yaml: 4.3.1
       parse-json: 5.2.0
     optionalDependencies:
       typescript: 5.9.3
@@ -3590,7 +3594,11 @@ snapshots:
 
   js-tokens@9.0.1: {}
 
-  js-yaml@4.1.1:
+  js-yaml@4.3.1:
+    dependencies:
+      argparse: 2.0.1
+
+  js-yaml@5.4.0:
     dependencies:
       argparse: 2.0.1
 
